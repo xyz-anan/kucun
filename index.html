@@ -1,0 +1,1096 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#24415b">
+<title>酒店订货管家</title>
+<style>
+:root{
+  --navy:#24415b;
+  --blue:#527b9d;
+  --bg:#f3f6f9;
+  --text:#263746;
+  --muted:#8493a0;
+  --line:#e5ebf0;
+  --green:#4b9875;
+  --red:#d66b6b;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+  font-size:14px;
+}
+header{
+  background:var(--navy);
+  color:white;
+  padding:20px 16px 16px;
+}
+header h1{margin:0;font-size:21px;letter-spacing:1px}
+header p{margin:7px 0 0;color:#d4e0e9;font-size:12px}
+nav{
+  display:flex;
+  background:white;
+  position:sticky;
+  top:0;
+  z-index:10;
+  box-shadow:0 2px 8px #00000008;
+}
+nav button{
+  flex:1;
+  border:0;
+  background:white;
+  padding:14px 3px;
+  color:#71808d;
+  font-size:12px;
+  border-bottom:3px solid transparent;
+}
+nav button.active{
+  color:var(--navy);
+  font-weight:bold;
+  border-bottom-color:var(--navy);
+}
+main{max-width:760px;margin:auto;padding:12px}
+.page{display:none}
+.page.active{display:block}
+.card{
+  background:white;
+  border-radius:12px;
+  padding:15px;
+  margin-bottom:12px;
+  box-shadow:0 2px 9px #23394a08;
+}
+.card h2{font-size:16px;margin:0 0 14px;color:var(--navy)}
+.card h3{font-size:14px;margin:12px 0 8px}
+label{
+  display:block;
+  color:#627382;
+  font-size:12px;
+  margin:10px 0 5px;
+}
+input,textarea,select{
+  width:100%;
+  border:1px solid #dce4eb;
+  border-radius:8px;
+  padding:11px;
+  font-size:14px;
+  color:var(--text);
+  background:white;
+  outline:none;
+}
+textarea{min-height:140px;resize:vertical;line-height:1.65}
+input:focus,textarea:focus,select:focus{
+  border-color:#789bb6;
+  box-shadow:0 0 0 3px #dceaf4;
+}
+button{cursor:pointer;font-family:inherit}
+.btn{
+  border:0;
+  border-radius:8px;
+  padding:11px 14px;
+  font-size:13px;
+  background:#eaf0f5;
+  color:var(--navy);
+}
+.btn.primary{background:var(--navy);color:white}
+.btn.green{background:#e5f3eb;color:#347b58}
+.btn.danger{background:#fff0f0;color:#bd5555}
+.btn.small{padding:7px 10px;font-size:12px}
+.btn.full{width:100%;margin-top:12px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{min-width:0;flex:1}
+.hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:7px}
+.item{
+  border:1px solid var(--line);
+  border-radius:9px;
+  padding:12px;
+  margin:9px 0;
+}
+.item-title{font-weight:bold;color:var(--navy);margin-bottom:8px}
+.item-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+}
+.item-grid label{margin-top:3px}
+.item-grid input,.item-grid select{padding:9px}
+.tag{
+  display:inline-block;
+  padding:4px 8px;
+  background:#edf3f7;
+  color:#52718a;
+  border-radius:20px;
+  font-size:11px;
+  margin:3px;
+}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.stat{background:#f3f7fa;border-radius:9px;padding:12px}
+.stat small{color:var(--muted)}
+.summary-number{font-size:23px;font-weight:bold;color:var(--navy);margin-top:5px}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px;min-width:440px}
+th,td{border-bottom:1px solid var(--line);padding:10px 7px;text-align:left}
+th{color:#657887;background:#f6f8fa}
+.empty{color:#9aa7b2;text-align:center;padding:25px 8px}
+.hidden{display:none!important}
+hr{border:0;border-top:1px solid var(--line);margin:14px 0}
+@media(max-width:420px){
+  main{padding:9px}
+  .card{padding:12px}
+  header{padding:17px 13px}
+  .item-grid{gap:6px}
+  .btn{padding:10px}
+  nav button{font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>酒店订货管家</h1>
+  <p>订单录入 · 商品管理 · 累计统计 · 数据备份</p>
+</header>
+
+<nav>
+  <button class="active" onclick="showPage('order',this)">订单录入</button>
+  <button onclick="showPage('summary',this)">累计统计</button>
+  <button onclick="showPage('history',this)">历史订单</button>
+  <button onclick="showPage('products',this)">商品管理</button>
+  <button onclick="showPage('backup',this)">数据备份</button>
+</nav>
+
+<main>
+
+<section class="page active" id="page-order">
+  <div class="card">
+    <h2>📝 新建订货单</h2>
+    <label>订单日期</label>
+    <input type="date" id="orderDate">
+    <label>微信订单原文</label>
+    <textarea id="raw" placeholder="把酒店发来的微信订货内容粘贴到这里……"></textarea>
+    <div class="hint">粘贴订单文字后，系统会识别日期、商品名称和数量。</div>
+    <button class="btn primary full" onclick="parseOrder()">识别订单内容</button>
+  </div>
+
+  <div class="card">
+    <h2>📋 订单核对</h2>
+    <div id="preview"><div class="empty">识别后的商品会显示在这里</div></div>
+    <button class="btn green full" onclick="saveOrder()">确认入账</button>
+  </div>
+</section>
+
+<section class="page" id="page-summary">
+  <div class="card">
+    <h2>📊 累计统计</h2>
+    <div class="row">
+      <div>
+        <label>开始日期</label>
+        <input type="date" id="summaryStart">
+      </div>
+      <div>
+        <label>结束日期</label>
+        <input type="date" id="summaryEnd">
+      </div>
+    </div>
+    <button class="btn primary full" onclick="renderSummary()">查询统计</button>
+    <div id="summaryContent"></div>
+    <button class="btn full" onclick="exportSummaryCSV()">导出统计 CSV</button>
+  </div>
+</section>
+
+<section class="page" id="page-history">
+  <div class="card">
+    <h2>📚 历史订单</h2>
+    <div id="historyContent"></div>
+  </div>
+</section>
+
+<section class="page" id="page-products">
+  <div class="card">
+    <h2>🍞 新增商品</h2>
+    <label>标准商品名称</label>
+    <input id="newProductName" placeholder="例如：魔芋脆肠包">
+    <label>商品单位</label>
+    <select id="newProductUnit">
+      <option value="个">个</option>
+      <option value="袋">袋</option>
+      <option value="斤">斤</option>
+      <option value="瓶">瓶</option>
+      <option value="盒">盒</option>
+      <option value="箱">箱</option>
+      <option value="杯">杯</option>
+    </select>
+    <label>默认单价（元）</label>
+    <input id="newProductPrice" type="number" min="0" step="0.01" placeholder="输入商品单价">
+    <label>默认折扣（82代表82折）</label>
+    <input id="newProductDiscount" type="number" min="0" max="100" value="82">
+    <label>商品别名（多个名称用顿号分开）</label>
+    <input id="newProductAliases" placeholder="例如：魔芋脆肠、魔芋肠包">
+    <button class="btn primary full" onclick="addProduct()">保存新商品</button>
+  </div>
+
+  <div class="card">
+    <h2>商品目录</h2>
+    <input id="productSearch" placeholder="搜索商品名称" oninput="renderProducts()">
+    <div id="productList"></div>
+  </div>
+</section>
+
+<section class="page" id="page-backup">
+  <div class="card">
+    <h2>💾 数据备份与恢复</h2>
+    <p class="hint">JSON用于完整备份。Excel包含商品目录、历史订单和订货明细。</p>
+    <button class="btn primary full" onclick="exportJSON()">导出 JSON 备份</button>
+    <button class="btn full" onclick="document.getElementById('backupFile').click()">导入 JSON 备份</button>
+    <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackup.call(this,event)">
+    <hr>
+    <button class="btn green full" onclick="exportExcel()">导出 Excel 备份</button>
+    <button class="btn full" onclick="document.getElementById('excelFile').click()">导入 Excel 备份</button>
+    <input type="file" id="excelFile" accept=".xlsx,.xls" style="display:none" onchange="importExcel.call(this,event)">
+    <div id="backupStatus" class="hint"></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+"use strict";
+
+/* =========================
+   一、数据与基础功能
+========================= */
+
+const DB_KEY = "hotel_order_manager_v1";
+let db = {products:[],orders:[]};
+let parsed = [];
+
+function uid(){
+  return "id_" + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+}
+function esc(v){
+  return String(v ?? "").replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  }[c]));
+}
+function num(v,def=0){
+  const n=Number(v);
+  return Number.isFinite(n)?n:def;
+}
+function money(v){
+  return (Math.round(num(v)*100)/100).toFixed(2);
+}
+function cleanName(v){
+  return String(v||"").trim().replace(/\s+/g,"");
+}
+function normalizeProduct(p){
+  return {
+    id:p.id||uid(),
+    name:String(p.name||"未命名商品"),
+    unit:p.unit||"个",
+    price:num(p.price,0),
+    discount:num(p.discount,82),
+    aliases:Array.isArray(p.aliases)?p.aliases.map(String).filter(Boolean):[],
+  };
+}
+function migrateDB(old){
+  const result={products:[],orders:[]};
+  if(!old||typeof old!=="object")return result;
+
+  const oldProducts=Array.isArray(old.products)?old.products:[];
+  result.products=oldProducts.map(normalizeProduct);
+
+  const oldOrders=Array.isArray(old.orders)?old.orders:[];
+  result.orders=oldOrders.map(o=>({
+    id:o.id||uid(),
+    date:o.date||"",
+    raw:o.raw||"",
+    items:(Array.isArray(o.items)?o.items:[]).map(x=>({
+      ...x,
+      id:x.id||uid(),
+      name:String(x.name||"未命名商品"),
+      quantity:num(x.quantity,0),
+      unit:x.unit||"个",
+      category:x.category||"正常订货",
+      price:num(x.price,0),
+      discount:num(x.discount,82),
+      amount:Number.isFinite(Number(x.amount))
+        ?num(x.amount)
+        :num(x.quantity)*num(x.price)*num(x.discount,82)/100
+    }))
+  }));
+  return result;
+}
+function loadDB(){
+  try{
+    const raw=localStorage.getItem(DB_KEY);
+    db=migrateDB(raw?JSON.parse(raw):null);
+  }catch(e){
+    db={products:[],orders:[]};
+    alert("读取本地数据失败，请先不要清理浏览器数据。");
+  }
+}
+function persist(){
+  localStorage.setItem(DB_KEY,JSON.stringify(db));
+}
+function findProductById(id){
+  return db.products.find(p=>p.id===id);
+}
+function findProductByName(name){
+  const key=cleanName(name);
+  return db.products.find(p=>
+    cleanName(p.name)===key ||
+    p.aliases.some(a=>cleanName(a)===key)
+  );
+}
+function matchProduct(name){
+  const key=cleanName(name);
+  if(!key)return null;
+  let best=null,bestLength=0;
+  for(const p of db.products){
+    const names=[p.name,...p.aliases];
+    for(const n of names){
+      const alias=cleanName(n);
+      if(alias && key.includes(alias) && alias.length>bestLength){
+        best=p;
+        bestLength=alias.length;
+      }
+    }
+  }
+  return best;
+}
+function showPage(name,btn){
+  document.querySelectorAll(".page").forEach(x=>x.classList.remove("active"));
+  const page=document.getElementById("page-"+name);
+  if(page)page.classList.add("active");
+  document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+  if(btn)btn.classList.add("active");
+  if(name==="summary")renderSummary();
+  if(name==="history")renderHistory();
+  if(name==="products")renderProducts();
+}
+function today(){
+  const d=new Date();
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+
+/* =========================
+   二、订单文字识别
+========================= */
+
+function detectDate(text){
+  let m=String(text||"").match(/(20\d{2})[年./-]\s*(\d{1,2})[月./-]\s*(\d{1,2})日?/);
+  if(m){
+    return m[1]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[3]).padStart(2,"0");
+  }
+  m=String(text||"").match(/(\d{1,2})月\s*(\d{1,2})日/);
+  if(m){
+    return new Date().getFullYear()+"-"+String(m[1]).padStart(2,"0")+"-"+String(m[2]).padStart(2,"0");
+  }
+  return "";
+}
+function parseQuantityLine(line){
+  let s=String(line||"").trim();
+  if(!s)return null;
+
+  let quantity=0,unit="",name="";
+
+  let m=s.match(/^(.+?)\s*(?:\*|×|x|X)\s*(\d+(?:\.\d+)?)\s*(袋|个|斤|瓶|盒|箱|杯)?$/);
+  if(m){
+    name=m[1];quantity=Number(m[2]);unit=m[3]||"";
+  }else{
+    m=s.match(/^(.+?)\s+(\d+(?:\.\d+)?)\s*(袋|个|斤|瓶|盒|箱|杯)?$/);
+    if(m){
+      name=m[1];quantity=Number(m[2]);unit=m[3]||"";
+    }else{
+      m=s.match(/^(\d+(?:\.\d+)?)\s*(袋|个|斤|瓶|盒|箱|杯)?\s*(.+)$/);
+      if(m){
+        quantity=Number(m[1]);unit=m[2]||"";name=m[3];
+      }else{
+        return null;
+      }
+    }
+  }
+
+  name=name.replace(/^[、，,：:\-\s]+|[、，,：:\-\s]+$/g,"").trim();
+  if(!name||!Number.isFinite(quantity)||quantity<=0)return null;
+  return {name,quantity,unit};
+}
+
+function parseOrder(){
+  const raw=document.getElementById("raw").value.trim();
+  if(!raw){
+    alert("请先粘贴微信订单内容。");
+    return;
+  }
+
+  const dateFromText=detectDate(raw);
+  const dateInput=document.getElementById("orderDate");
+  if(dateFromText)dateInput.value=dateFromText;
+  if(!dateInput.value)dateInput.value=today();
+
+  parsed=[];
+  let category="正常订货";
+  const lines=raw.split(/\n+/);
+
+  for(let line of lines){
+    line=line.trim();
+    if(!line)continue;
+
+    // 跳过日期行
+    if(/^(?:(?:20\d{2})\s*[年./-]\s*)?\d{1,2}\s*[月./-]\s*\d{1,2}\s*日?$/.test(line)){
+      continue;
+    }
+
+    // 跳过日期说明行
+    if(/^(日期|订货日期|订单日期)\s*[:：]?\s*(?:(?:20\d{2})\s*[年./-]\s*)?\d{1,2}\s*[月./-]\s*\d{1,2}\s*日?$/.test(line)){
+      continue;
+    }
+
+    if(/提前装好|另提前|提前准备/.test(line)){
+      category="提前装好";
+      line=line.replace(/另?提前装好|提前准备/g,"").trim();
+      if(!line)continue;
+    }
+
+    if(/正常订货/.test(line)){
+      category="正常订货";
+      line=line.replace(/正常订货/g,"").trim();
+      if(!line)continue;
+    }
+
+    line=line.replace(/^[、，,：:\-\s]+/,"");
+    const found=parseQuantityLine(line);
+    if(!found)continue;
+
+    const product=matchProduct(found.name);
+    const standardName=product?product.name:found.name;
+    const unit=product?product.unit:(found.unit||"个");
+
+    const old=parsed.find(x=>
+      cleanName(x.name)===cleanName(standardName) &&
+      x.category===category &&
+      x.unit===unit
+    );
+
+    if(old){
+      old.quantity+=found.quantity;
+    }else{
+      parsed.push({
+        id:uid(),
+        productId:product?product.id:"",
+        name:standardName,
+        originalName:found.name,
+        quantity:found.quantity,
+        unit,
+        category,
+        price:product?product.price:0,
+        discount:product?product.discount:82
+      });
+    }
+  }
+
+  if(!parsed.length){
+    document.getElementById("preview").innerHTML=
+      '<div class="empty">暂时没有识别到商品。请检查文字格式，或把订单样例发给我调整识别规则。</div>';
+    return;
+  }
+
+  renderPreview();
+}
+
+function updateParsed(i,key,value){
+  if(!parsed[i])return;
+  if(["quantity","price","discount"].includes(key)){
+    parsed[i][key]=num(value,0);
+  }else{
+    parsed[i][key]=value;
+  }
+}
+function changeParsedProduct(i,id){
+  const x=parsed[i];
+  if(!x)return;
+  const p=findProductById(id);
+  if(p){
+    x.productId=p.id;
+    x.name=p.name;
+    x.unit=p.unit;
+    x.price=p.price;
+    x.discount=p.discount;
+  }else{
+    x.productId="";
+  }
+  renderPreview();
+}
+function removeParsed(i){
+  parsed.splice(i,1);
+  renderPreview();
+}
+function renderPreview(){
+  const box=document.getElementById("preview");
+  if(!parsed.length){
+    box.innerHTML='<div class="empty">没有待核对商品</div>';
+    return;
+  }
+
+  box.innerHTML=parsed.map((x,i)=>{
+    const amount=num(x.quantity)*num(x.price)*num(x.discount,82)/100;
+    const options=db.products.map(p=>
+      `<option value="${esc(p.id)}" ${p.id===x.productId?"selected":""}>${esc(p.name)}</option>`
+    ).join("");
+
+    return `
+      <div class="item">
+        <div class="item-title">商品 ${i+1}</div>
+        <label>标准商品名称</label>
+        <input value="${esc(x.name)}" onchange="updateParsed(${i},'name',this.value)">
+        <label>匹配商品目录</label>
+        <select onchange="changeParsedProduct(${i},this.value)">
+          <option value="">作为新商品录入</option>
+          ${options}
+        </select>
+        <div class="item-grid">
+          <div><label>数量</label><input type="number" min="0" step="0.01" value="${esc(x.quantity)}" onchange="updateParsed(${i},'quantity',this.value);renderPreview()"></div>
+          <div><label>单位</label><input value="${esc(x.unit)}" onchange="updateParsed(${i},'unit',this.value)"></div>
+          <div><label>单价（元）</label><input type="number" min="0" step="0.01" value="${esc(x.price)}" onchange="updateParsed(${i},'price',this.value);renderPreview()"></div>
+          <div><label>折扣（82代表82折）</label><input type="number" min="0" max="100" value="${esc(x.discount)}" onchange="updateParsed(${i},'discount',this.value);renderPreview()"></div>
+        </div>
+        <label>订货类别</label>
+        <select onchange="updateParsed(${i},'category',this.value)">
+          <option ${x.category==="正常订货"?"selected":""}>正常订货</option>
+          <option ${x.category==="提前装好"?"selected":""}>提前装好</option>
+        </select>
+        <p><strong>金额：¥${money(amount)}</strong></p>
+        <button class="btn danger small" onclick="removeParsed(${i})">删除此项</button>
+      </div>
+    `;
+  }).join("");
+}
+
+/* =========================
+   三、确认入账与默认值记忆
+========================= */
+
+function saveOrder(){
+  if(!parsed.length){
+    alert("请先识别订单并核对商品。");
+    return;
+  }
+  const date=document.getElementById("orderDate").value;
+  if(!date){
+    alert("请确认订单日期。");
+    return;
+  }
+
+  const items=[];
+  for(const x of parsed){
+    if(!String(x.name||"").trim()||num(x.quantity)<=0){
+      alert("商品名称或数量不正确，请检查后再入账。");
+      return;
+    }
+    let p=x.productId?findProductById(x.productId):null;
+    if(!p){
+      p=findProductByName(x.name);
+    }
+    if(!p){
+      p={
+        id:uid(),
+        name:String(x.name).trim(),
+        unit:x.unit||"个",
+        price:num(x.price),
+        discount:num(x.discount,82),
+        aliases:[]
+      };
+      db.products.push(p);
+    }else{
+      p.price=num(x.price);
+      p.discount=num(x.discount,82);
+    }
+
+    const quantity=num(x.quantity);
+    const price=num(x.price);
+    const discount=num(x.discount,82);
+    items.push({
+      id:uid(),
+      productId:p.id,
+      name:p.name,
+      quantity,
+      unit:x.unit||p.unit,
+      category:x.category||"正常订货",
+      price,
+      discount,
+      amount:Math.round(quantity*price*discount)/100
+    });
+  }
+
+  db.orders.push({
+    id:uid(),
+    date,
+    raw:document.getElementById("raw").value,
+    items
+  });
+  persist();
+
+  parsed=[];
+  document.getElementById("preview").innerHTML=
+    '<div class="empty">订单已入账，可以继续录入下一单。</div>';
+  document.getElementById("raw").value="";
+  alert("订单已保存！商品单价和折扣默认值也已更新。");
+  renderSummary();
+}
+
+/* =========================
+   四、商品目录管理
+========================= */
+
+function addProduct(){
+  const name=document.getElementById("newProductName").value.trim();
+  const unit=document.getElementById("newProductUnit").value;
+  const price=num(document.getElementById("newProductPrice").value);
+  const discount=num(document.getElementById("newProductDiscount").value,82);
+  const aliases=document.getElementById("newProductAliases").value
+    .split(/[、，,;；]/).map(x=>x.trim()).filter(Boolean);
+
+  if(!name){
+    alert("请填写商品名称。");
+    return;
+  }
+  if(discount<0||discount>100){
+    alert("折扣请填写0到100之间的数字。");
+    return;
+  }
+  const allNames=[name,...aliases];
+  for(const n of allNames){
+    const exists=findProductByName(n);
+    if(exists){
+      alert("名称或别名「"+n+"」已经属于商品「"+exists.name+"」，请检查是否重复。");
+      return;
+    }
+  }
+
+  db.products.push({
+    id:uid(),name,unit,price,discount,aliases
+  });
+  persist();
+
+  document.getElementById("newProductName").value="";
+  document.getElementById("newProductPrice").value="";
+  document.getElementById("newProductDiscount").value="82";
+  document.getElementById("newProductAliases").value="";
+  renderProducts();
+  alert("商品已保存。");
+}
+function updateProduct(id,key,value){
+  const p=findProductById(id);
+  if(!p)return;
+  if(key==="price"||key==="discount"){
+    p[key]=num(value,0);
+  }else if(key==="aliases"){
+    const aliases=value.split(/[、，,;；]/).map(x=>x.trim()).filter(Boolean);
+    for(const a of aliases){
+      const exists=findProductByName(a);
+      if(exists&&exists.id!==id){
+        alert("别名「"+a+"」已经属于「"+exists.name+"」，没有保存。");
+        renderProducts();
+        return;
+      }
+    }
+    p.aliases=aliases;
+  }else{
+    p[key]=value;
+  }
+  persist();
+}
+function deleteProduct(id){
+  const p=findProductById(id);
+  if(!p)return;
+  if(!confirm("确定删除商品「"+p.name+"」吗？历史订单不会被删除。"))return;
+  db.products=db.products.filter(x=>x.id!==id);
+  persist();
+  renderProducts();
+}
+function renderProducts(){
+  const box=document.getElementById("productList");
+  const search=cleanName(document.getElementById("productSearch").value).toLowerCase();
+  const list=db.products.filter(p=>
+    cleanName(p.name).toLowerCase().includes(search)||
+    p.aliases.some(a=>cleanName(a).toLowerCase().includes(search))
+  );
+
+  if(!list.length){
+    box.innerHTML='<div class="empty">还没有商品，或没有找到匹配的商品</div>';
+    return;
+  }
+  box.innerHTML=list.map(p=>`
+    <div class="item">
+      <div class="item-title">${esc(p.name)}</div>
+      <div class="item-grid">
+        <div><label>标准名称</label><input value="${esc(p.name)}" onchange="updateProduct('${p.id}','name',this.value)"></div>
+        <div><label>单位</label>
+          <select onchange="updateProduct('${p.id}','unit',this.value)">
+            ${["个","袋","斤","瓶","盒","箱","杯"].map(u=>`<option ${p.unit===u?"selected":""}>${u}</option>`).join("")}
+          </select>
+        </div>
+        <div><label>默认单价</label><input type="number" min="0" step="0.01" value="${esc(p.price)}" onchange="updateProduct('${p.id}','price',this.value)"></div>
+        <div><label>默认折扣</label><input type="number" min="0" max="100" value="${esc(p.discount)}" onchange="updateProduct('${p.id}','discount',this.value)"></div>
+      </div>
+      <label>别名（用顿号分开）</label>
+      <input value="${esc(p.aliases.join("、"))}" onchange="updateProduct('${p.id}','aliases',this.value)">
+      <button class="btn danger small" style="margin-top:9px" onclick="deleteProduct('${p.id}')">删除商品</button>
+    </div>
+  `).join("");
+}
+
+/* =========================
+   五、累计统计
+========================= */
+
+function getFilteredOrders(){
+  const start=document.getElementById("summaryStart").value;
+  const end=document.getElementById("summaryEnd").value;
+  return db.orders.filter(o=>
+    (!start||o.date>=start)&&(!end||o.date<=end)
+  );
+}
+function renderSummary(){
+  const orders=getFilteredOrders();
+  const totals={};
+  let totalAmount=0,totalCount=0,normalCount=0,earlyCount=0;
+
+  for(const o of orders){
+    for(const x of o.items||[]){
+      const key=x.name+"|"+x.unit;
+      if(!totals[key]){
+        totals[key]={name:x.name,unit:x.unit,normal:0,early:0,total:0,amount:0};
+      }
+      const q=num(x.quantity);
+      totals[key].total+=q;
+      totals[key].amount+=num(x.amount,q*num(x.price)*num(x.discount,82)/100);
+      if(x.category==="提前装好"){
+        totals[key].early+=q;
+        earlyCount+=q;
+      }else{
+        totals[key].normal+=q;
+        normalCount+=q;
+      }
+      totalCount+=q;
+      totalAmount+=num(x.amount,q*num(x.price)*num(x.discount,82)/100);
+    }
+  }
+
+  const rows=Object.values(totals).sort((a,b)=>a.name.localeCompare(b.name,"zh-CN"));
+  document.getElementById("summaryContent").innerHTML=`
+    <div class="stat-grid" style="margin-top:14px">
+      <div class="stat"><small>订单数量</small><div class="summary-number">${orders.length}</div></div>
+      <div class="stat"><small>订货总金额</small><div class="summary-number">¥${money(totalAmount)}</div></div>
+      <div class="stat"><small>正常订货数量</small><div class="summary-number">${money(normalCount)}</div></div>
+      <div class="stat"><small>提前装好数量</small><div class="summary-number">${money(earlyCount)}</div></div>
+    </div>
+    <h3>商品累计明细</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>商品</th><th>单位</th><th>正常订货</th><th>提前装好</th><th>总量</th><th>金额</th></tr></thead>
+        <tbody>
+          ${rows.map(x=>`<tr>
+            <td>${esc(x.name)}</td><td>${esc(x.unit)}</td>
+            <td>${money(x.normal)}</td><td>${money(x.early)}</td>
+            <td><strong>${money(x.total)}</strong></td><td>¥${money(x.amount)}</td>
+          </tr>`).join("")||'<tr><td colspan="6" class="empty">当前日期范围没有订单</td></tr>'}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+function exportSummaryCSV(){
+  const orders=getFilteredOrders();
+  const rows=[["商品","单位","正常订货","提前装好","总量","金额"]];
+  const totals={};
+  for(const o of orders){
+    for(const x of o.items||[]){
+      const k=x.name+"|"+x.unit;
+      if(!totals[k])totals[k]={name:x.name,unit:x.unit,normal:0,early:0,total:0,amount:0};
+      const t=totals[k],q=num(x.quantity);
+      t.total+=q;
+      t.amount+=num(x.amount,q*num(x.price)*num(x.discount,82)/100);
+      if(x.category==="提前装好")t.early+=q;
+      else t.normal+=q;
+    }
+  }
+  Object.values(totals).forEach(x=>rows.push([
+    x.name,x.unit,x.normal,x.early,x.total,money(x.amount)
+  ]));
+  downloadBlob("\uFEFF"+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n"),
+    "累计统计.csv","text/csv;charset=utf-8");
+}
+
+/* =========================
+   六、历史订单
+========================= */
+
+function renderHistory(){
+  const box=document.getElementById("historyContent");
+  const orders=[...db.orders].sort((a,b)=>b.date.localeCompare(a.date));
+  if(!orders.length){
+    box.innerHTML='<div class="empty">还没有历史订单</div>';
+    return;
+  }
+  box.innerHTML=orders.map(o=>{
+    const amount=(o.items||[]).reduce((s,x)=>
+      s+num(x.amount,num(x.quantity)*num(x.price)*num(x.discount,82)/100),0);
+    return `
+      <div class="item">
+        <div class="item-title">${esc(o.date)}　订单金额：¥${money(amount)}</div>
+        ${(o.items||[]).map(x=>`
+          <div style="padding:5px 0;border-bottom:1px solid #f0f2f4">
+            ${esc(x.name)}　${esc(x.quantity)} ${esc(x.unit)}
+            <span class="tag">${esc(x.category)}</span>
+            <div class="hint">单价 ¥${money(x.price)} × ${money(x.discount)}折 = ¥${money(x.amount)}</div>
+          </div>
+        `).join("")}
+        <button class="btn danger small" style="margin-top:10px" onclick="deleteOrder('${o.id}')">删除整张订单</button>
+      </div>
+    `;
+  }).join("");
+}
+function deleteOrder(id){
+  if(!confirm("确定删除这张历史订单吗？删除后不能自动恢复。"))return;
+  db.orders=db.orders.filter(o=>o.id!==id);
+  persist();
+  renderHistory();
+}
+
+/* =========================
+   七、JSON备份与恢复
+========================= */
+
+function downloadBlob(content,filename,type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function exportJSON(){
+  const data={
+    version:2,
+    exportedAt:new Date().toISOString(),
+    products:db.products,
+    orders:db.orders
+  };
+  downloadBlob(JSON.stringify(data,null,2),
+    "酒店订货管家备份_"+today()+".json","application/json");
+  document.getElementById("backupStatus").textContent="JSON备份文件已生成。";
+}
+function importBackup(event){
+  const file=event.target.files&&event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const incoming=JSON.parse(reader.result);
+      if(!incoming||!Array.isArray(incoming.products)||!Array.isArray(incoming.orders)){
+        throw new Error("文件格式不正确");
+      }
+      if(!confirm("导入会替换当前商品目录和历史订单。建议先导出当前备份。确定继续吗？"))return;
+      db=migrateDB(incoming);
+      persist();
+      renderProducts();
+      renderSummary();
+      renderHistory();
+      document.getElementById("backupStatus").textContent="JSON数据已成功导入。";
+      alert("数据恢复成功！");
+    }catch(e){
+      alert("导入失败："+e.message);
+      document.getElementById("backupStatus").textContent="导入失败，请检查备份文件。";
+    }finally{
+      event.target.value="";
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* =========================
+   八、启动
+========================= */
+
+loadDB();
+document.getElementById("orderDate").value=today();
+document.getElementById("summaryEnd").value=today();
+renderProducts();
+renderSummary();
+renderHistory();
+</script>
+
+<script>
+/* =========================
+   九、Excel导出与导入
+   需要联网加载SheetJS
+========================= */
+
+function loadExcelLibrary(callback){
+  if(window.XLSX){
+    callback();
+    return;
+  }
+
+  const script=document.createElement("script");
+  script.src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+  script.onload=callback;
+  script.onerror=()=>{
+    alert("Excel功能加载失败，请检查网络连接后重试。");
+  };
+  document.head.appendChild(script);
+}
+
+function exportExcel(){
+  loadExcelLibrary(()=>{
+    const wb=XLSX.utils.book_new();
+
+    const productRows=[
+      ["商品ID","标准商品名称","单位","默认单价","默认折扣","商品别名"],
+      ...db.products.map(p=>[
+        p.id,p.name,p.unit,p.price,p.discount,p.aliases.join("、")
+      ])
+    ];
+
+    const orderRows=[
+      ["订单ID","订单日期","订单原文"],
+      ...db.orders.map(o=>[o.id,o.date,o.raw||""])
+    ];
+
+    const itemRows=[
+      ["订单ID","订单日期","商品ID","商品名称","数量","单位","订货类别","单价","折扣","金额"],
+      ...db.orders.flatMap(o=>(o.items||[]).map(x=>[
+        o.id,o.date,x.productId||"",x.name,x.quantity,x.unit,
+        x.category,x.price,x.discount,x.amount
+      ]))
+    ];
+
+    XLSX.utils.book_append_sheet(
+      wb,XLSX.utils.aoa_to_sheet(productRows),"商品目录"
+    );
+    XLSX.utils.book_append_sheet(
+      wb,XLSX.utils.aoa_to_sheet(orderRows),"历史订单"
+    );
+    XLSX.utils.book_append_sheet(
+      wb,XLSX.utils.aoa_to_sheet(itemRows),"订货明细"
+    );
+
+    XLSX.writeFile(wb,"酒店订货管家_"+today()+".xlsx");
+    document.getElementById("backupStatus").textContent="Excel文件已导出。";
+  });
+}
+
+function importExcel(){
+  const input=document.getElementById("excelFile");
+  const file=input.files&&input.files[0];
+  if(!file)return;
+
+  loadExcelLibrary(()=>{
+    const reader=new FileReader();
+
+    reader.onload=()=>{
+      try{
+        const wb=XLSX.read(reader.result,{type:"array"});
+
+        const productSheet=wb.Sheets["商品目录"];
+        const orderSheet=wb.Sheets["历史订单"];
+        const itemSheet=wb.Sheets["订货明细"];
+
+        if(!productSheet||!orderSheet||!itemSheet){
+          throw new Error("Excel必须包含商品目录、历史订单、订货明细三个工作表。");
+        }
+
+        const products=XLSX.utils.sheet_to_json(productSheet,{defval:""});
+        const orders=XLSX.utils.sheet_to_json(orderSheet,{defval:""});
+        const items=XLSX.utils.sheet_to_json(itemSheet,{defval:""});
+
+        const newProducts=products.map(p=>({
+          id:String(p["商品ID"]||uid()),
+          name:String(p["标准商品名称"]||""),
+          unit:String(p["单位"]||"个"),
+          price:num(p["默认单价"]),
+          discount:num(p["默认折扣"],82),
+          aliases:String(p["商品别名"]||"")
+            .split(/[、，,;；]/).map(x=>x.trim()).filter(Boolean)
+        })).filter(p=>p.name);
+
+        const newOrders=orders.map(o=>({
+          id:String(o["订单ID"]||uid()),
+          date:String(o["订单日期"]||""),
+          raw:String(o["订单原文"]||""),
+          items:[]
+        }));
+
+        const orderMap={};
+        newOrders.forEach(o=>orderMap[o.id]=o);
+
+        items.forEach(x=>{
+          const orderId=String(x["订单ID"]||"");
+          const order=orderMap[orderId];
+          if(!order)return;
+
+          const quantity=num(x["数量"]);
+          const price=num(x["单价"]);
+          const discount=num(x["折扣"],82);
+          const amount=x["金额"]===""
+            ?quantity*price*discount/100
+            :num(x["金额"]);
+
+          order.items.push({
+            id:uid(),
+            productId:String(x["商品ID"]||""),
+            name:String(x["商品名称"]||""),
+            quantity,
+            unit:String(x["单位"]||"个"),
+            category:String(x["订货类别"]||"正常订货"),
+            price,
+            discount,
+            amount
+          });
+        });
+
+        if(!confirm("导入Excel会替换当前全部商品和历史订单。建议先导出JSON备份。确定继续吗？")){
+          input.value="";
+          return;
+        }
+
+        db=migrateDB({products:newProducts,orders:newOrders});
+        persist();
+
+        renderProducts();
+        renderSummary();
+        renderHistory();
+
+        document.getElementById("backupStatus").textContent="Excel数据已成功导入。";
+        alert("Excel数据恢复成功！");
+      }catch(e){
+        alert("Excel导入失败："+e.message);
+        document.getElementById("backupStatus").textContent="Excel导入失败，请检查文件格式。";
+      }finally{
+        input.value="";
+      }
+    };
+
+    reader.onerror=()=>{
+      alert("读取Excel文件失败。");
+      input.value="";
+    };
+
+    reader.readAsArrayBuffer(file);
+  });
+}
+</script>
+</body>
+</html>
