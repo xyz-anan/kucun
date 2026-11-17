@@ -687,27 +687,55 @@ function addProduct(){
   renderProducts();
   alert("商品已保存。");
 }
-function updateProduct(id,key,value){
+
+function saveProduct(id,button){
   const p=findProductById(id);
   if(!p)return;
-  if(key==="price"||key==="discount"){
-    p[key]=num(value,0);
-  }else if(key==="aliases"){
-    const aliases=value.split(/[、，,;；]/).map(x=>x.trim()).filter(Boolean);
-    for(const a of aliases){
-      const exists=findProductByName(a);
-      if(exists&&exists.id!==id){
-        alert("别名「"+a+"」已经属于「"+exists.name+"」，没有保存。");
-        renderProducts();
-        return;
-      }
-    }
-    p.aliases=aliases;
-  }else{
-    p[key]=value;
+
+  const card=button.closest(".item");
+  const name=card.querySelector(".edit-name").value.trim();
+  const unit=card.querySelector(".edit-unit").value;
+  const price=Number(card.querySelector(".edit-price").value);
+  const discount=Number(card.querySelector(".edit-discount").value);
+  const aliasText=card.querySelector(".edit-aliases").value;
+
+  if(!name){
+    alert("商品名称不能为空。");
+    return;
   }
+
+  if(!Number.isFinite(price)||price<0){
+    alert("请输入正确的单价。");
+    return;
+  }
+
+  if(!Number.isFinite(discount)||discount<0||discount>100){
+    alert("折扣必须在0到100之间。");
+    return;
+  }
+
+  const aliases=aliasText.split(/[、，,;；]/)
+    .map(x=>x.trim()).filter(Boolean);
+
+  for(const a of aliases){
+    const exists=findProductByName(a);
+    if(exists&&exists.id!==id){
+      alert("别名「"+a+"」已经属于「"+exists.name+"」，请修改后再保存。");
+      return;
+    }
+  }
+
+  p.name=name;
+  p.unit=unit;
+  p.price=price;
+  p.discount=discount;
+  p.aliases=aliases;
+
   persist();
+  renderProducts();
+  alert("商品全部资料已保存！");
 }
+
 function deleteProduct(id){
   const p=findProductById(id);
   if(!p)return;
@@ -716,34 +744,61 @@ function deleteProduct(id){
   persist();
   renderProducts();
 }
+
 function renderProducts(){
   const box=document.getElementById("productList");
   const search=cleanName(document.getElementById("productSearch").value).toLowerCase();
+
   const list=db.products.filter(p=>
     cleanName(p.name).toLowerCase().includes(search)||
-    p.aliases.some(a=>cleanName(a).toLowerCase().includes(search))
+    (p.aliases||[]).some(a=>cleanName(a).toLowerCase().includes(search))
   );
 
   if(!list.length){
     box.innerHTML='<div class="empty">还没有商品，或没有找到匹配的商品</div>';
     return;
   }
+
   box.innerHTML=list.map(p=>`
     <div class="item">
       <div class="item-title">${esc(p.name)}</div>
+
       <div class="item-grid">
-        <div><label>标准名称</label><input value="${esc(p.name)}" onchange="updateProduct('${p.id}','name',this.value)"></div>
-        <div><label>单位</label>
-          <select onchange="updateProduct('${p.id}','unit',this.value)">
-            ${["个","袋","斤","瓶","盒","箱","杯"].map(u=>`<option ${p.unit===u?"selected":""}>${u}</option>`).join("")}
+        <div>
+          <label>标准名称</label>
+          <input class="edit-name" value="${esc(p.name)}">
+        </div>
+
+        <div>
+          <label>单位</label>
+          <select class="edit-unit">
+            ${["个","袋","斤","瓶","盒","箱","杯"].map(u=>
+              `<option ${p.unit===u?"selected":""}>${u}</option>`
+            ).join("")}
           </select>
         </div>
-        <div><label>默认单价</label><input type="number" min="0" step="0.01" value="${esc(p.price)}" onchange="updateProduct('${p.id}','price',this.value)"></div>
-        <div><label>默认折扣</label><input type="number" min="0" max="100" value="${esc(p.discount)}" onchange="updateProduct('${p.id}','discount',this.value)"></div>
+
+        <div>
+          <label>默认单价</label>
+          <input class="edit-price" type="number" min="0" step="0.01" value="${esc(p.price)}">
+        </div>
+
+        <div>
+          <label>默认折扣</label>
+          <input class="edit-discount" type="number" min="0" max="100" value="${esc(p.discount)}">
+        </div>
       </div>
-      <label>别名（用顿号分开）</label>
-      <input value="${esc(p.aliases.join("、"))}" onchange="updateProduct('${p.id}','aliases',this.value)">
-      <button class="btn danger small" style="margin-top:9px" onclick="deleteProduct('${p.id}')">删除商品</button>
+
+      <label>商品别名（用顿号分开）</label>
+      <input class="edit-aliases" value="${esc((p.aliases||[]).join("、"))}">
+
+      <div style="display:flex;justify-content:space-between;gap:10px;margin-top:10px">
+        <button class="btn danger small"
+          onclick="deleteProduct('${p.id}')">删除商品</button>
+
+        <button class="btn small"
+          onclick="saveProduct('${p.id}',this)">保存</button>
+      </div>
     </div>
   `).join("");
 }
