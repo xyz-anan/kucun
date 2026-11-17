@@ -61,7 +61,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 <div><label>订单日期（自动识别，可修改）</label><input type="date" id="orderDate"></div>
 <button class="btn secondary fit" style="margin-top:27px" id="parseBtn">识别订单</button>
 </div>
-<div class="hint" style="margin-top:8px">单位规则：吐司默认“袋”；普通面包默认“个”；牛奶默认“斤”。</div>
+<div class="hint" style="margin-top:8px">单位规则：吐司默认“袋”；普通面包默认“个”；牛奶默认“斤”。酸奶若未写明瓶装规格或斤数，会要求你核对。</div>
 </div>
 <div id="previewCard" class="card hidden">
 <div class="row"><h2 style="margin:0">核对识别结果</h2><span class="pill" id="countPill">0条</span></div>
@@ -88,6 +88,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 
 <section id="summary" class="panel">
 <div class="stats">
+<div class="stat"><b id="totalKinds">0</b><span>商品规格数</span></div>
 <div class="stat"><b id="totalQty">0</b><span>累计数量（不同单位不换算）</span></div>
 <div class="stat"><b id="orderCount">0</b><span>订单天数</span></div>
 </div>
@@ -102,7 +103,7 @@ table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;p
 </div>
 <div class="card">
 <div class="row"><h2 style="margin:0">商品累计</h2><button class="btn secondary small fit" id="exportBtn">导出汇总表</button></div>
-<p class="hint">按商品名称和单位分别累计；导出的CSV可用Excel打开。</p>
+<p class="hint">按商品名称、规格和单位分别累计；不同规格不会混算。导出的CSV可用Excel打开。</p>
 <div class="row" style="margin:8px 0"><button class="btn secondary small" id="exportDetailBtn">导出每日明细</button></div>
 <div class="tablewrap" id="summaryTable"></div>
 </div>
@@ -143,7 +144,7 @@ function defaultDiscount(name,unit){
  return 100;
 }
 function findProduct(name,size='',unit=''){
- // 价格按商品名称+单位区分，尤其避免250ml和500ml酸奶共用价格
+ // 价格按商品名称+规格+单位区分，尤其避免250ml和500ml酸奶共用价格
  return db.products.find(p=>p.name===name&&(p.size||'')===(size||'')&&(!unit||p.unit===unit));
 }
 function addProduct(name,unit='个',size=''){
@@ -258,12 +259,7 @@ function renderPreview(){
  <input aria-label="数量" type="number" min="0" step="0.01" value="${r.qty}" onchange="parsed[${i}].qty=Number(this.value);updatePreviewTotals()">
  <select aria-label="单位" onchange="updateParsedSetting(${i},'unit',this.value)">${['个','袋','包','斤','瓶','箱','提','盒','杯','待确认'].map(u=>`<option ${r.unit===u?'selected':''}>${u}</option>`).join('')}</select>
  </div>
-<div class="row" style="margin-top:7px">
-  <select onchange="parsed[${i}].category=this.value">
-    <option ${r.category==='正常订货'?'selected':''}>正常订货</option>
-    <option ${r.category==='提前装好'?'selected':''}>提前装好</option>
-  </select>
-</div>
+ <div class="row" style="margin-top:7px"><select onchange="parsed[${i}].category=this.value"><option ${r.category==='正常订货'?'selected':''}>正常订货</option><option ${r.category==='提前装好'?'selected':''}>提前装好</option></select><input placeholder="规格，例如250ml/500ml" value="${esc(r.size)}" onchange="updateParsedSetting(${i},'size',this.value.trim())"></div>
  <div class="pricefields">
  <div><label>单价（元）</label><input aria-label="单价" type="number" min="0" step="0.01" placeholder="输入单价" value="${r.unitPrice??''}" oninput="parsed[${i}].unitPrice=this.value;updatePreviewTotals()"></div>
  <div><label>折扣（%）</label><input aria-label="折扣百分数" type="number" min="0" max="100" step="0.1" value="${r.discount??100}" oninput="parsed[${i}].discount=this.value;updatePreviewTotals()"></div>
@@ -327,7 +323,7 @@ function renderSummary(){
  document.getElementById('orderCount').textContent=new Set(orders.map(o=>o.date)).size;
  const start=document.getElementById('filterStart')?.value||'',end=document.getElementById('filterEnd')?.value||'';
  document.getElementById('rangeLabel').textContent=(start||end)?`当前统计：${start||'最早'} 至 ${end||'最近'}`:'当前统计：全部日期';
- document.getElementById('summaryTable').innerHTML=rows.length?`<table><thead><tr><th>商品</th><th>正常订货</th><th>提前装好</th><th>累计</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.name)}</b><br><span class="hint">${esc(r.size||'')} ${esc(r.unit)}</span></td><td>${r.normal} ${esc(r.unit)}</td><td>${r.pre} ${esc(r.unit)}</td><td><b>${r.qty} ${esc(r.unit)}</b></td></tr>`).join('')}</tbody></table>`:'<div class="empty">所选日期范围内没有订单。</div>';
+ document.getElementById('summaryTable').innerHTML=rows.length?`<table><thead><tr><th>商品/规格</th><th>正常订货</th><th>提前装好</th><th>累计</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.name)}</b><br><span class="hint">${esc(r.size||'')} ${esc(r.unit)}</span></td><td>${r.normal} ${esc(r.unit)}</td><td>${r.pre} ${esc(r.unit)}</td><td><b>${r.qty} ${esc(r.unit)}</b></td></tr>`).join('')}</tbody></table>`:'<div class="empty">所选日期范围内没有订单。</div>';
 }
 function renderHistory(){
  const box=document.getElementById('historyList');
@@ -355,12 +351,12 @@ function downloadCSV(rows,filename){
 }
 document.getElementById('exportBtn').onclick=()=>{
  const start=document.getElementById('filterStart').value,end=document.getElementById('filterEnd').value;
- const rows=[['统计开始日期',start||'全部'],['统计结束日期',end||'全部'],[],['商品名称','单位','正常订货累计','提前装好累计','总累计']];
+ const rows=[['统计开始日期',start||'全部'],['统计结束日期',end||'全部'],[],['商品名称','规格','单位','正常订货累计','提前装好累计','总累计']];
  getSummary().forEach(r=>rows.push([r.name,r.size,r.unit,r.normal,r.pre,r.qty]));
  downloadCSV(rows,'酒店订货汇总统计.csv');
 };
 document.getElementById('exportDetailBtn').onclick=()=>{
- const rows=[['订单日期','商品名称','数量','单位','订单分类','单价','折扣百分数','金额']];
+ const rows=[['订单日期','商品名称','规格','数量','单位','订单分类','单价','折扣百分数','金额']];
  selectedOrders().sort((a,b)=>a.date.localeCompare(b.date)).forEach(o=>o.items.forEach(r=>rows.push([o.date,r.name,r.size,r.qty,r.unit,r.category,r.unitPrice??'',r.discount??100,r.amount??rowAmount(r)])));
  downloadCSV(rows,'酒店每日订货明细.csv');
 };
