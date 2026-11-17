@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#24415b">
+<title>酒店订货管家</title>
+<style>
+:root{--navy:#24415b;--blue:#eaf2f8;--bg:#f4f7fa;--ink:#203040;--muted:#738292;--line:#e2e8ee;--green:#25845d;--red:#c65c50;--white:#fff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif}
+header{background:var(--navy);color:#fff;padding:18px 17px 15px;position:sticky;top:0;z-index:5;box-shadow:0 2px 10px #142c401c}
+header .top{display:flex;justify-content:space-between;align-items:center}h1{font-size:20px;margin:0;font-weight:750}header p{font-size:12px;opacity:.8;margin:7px 0 0}
+main{max-width:760px;margin:auto;padding:14px 13px 90px}.tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:13px}
+.tab{border:0;border-radius:12px;padding:11px 5px;background:#e7edf2;color:#526476;font-size:14px;font-weight:650}
+.tab.active{background:var(--navy);color:white}
+.panel{display:none}.panel.active{display:block}
+.card{background:white;border:1px solid var(--line);border-radius:16px;padding:15px;margin-bottom:12px;box-shadow:0 2px 8px #1d35450a}
+.card h2{font-size:16px;margin:0 0 12px}.hint{font-size:12px;color:var(--muted);line-height:1.6}
+label{display:block;font-size:13px;color:#526476;font-weight:650;margin:10px 0 6px}
+input,textarea,select{width:100%;border:1px solid #d7e0e8;border-radius:10px;background:#fff;padding:11px 12px;font:inherit;font-size:15px;color:var(--ink);outline:none}
+textarea{min-height:170px;resize:vertical;line-height:1.65}input:focus,textarea:focus,select:focus{border-color:#789bb6;box-shadow:0 0 0 3px #dceaf4}
+button{font:inherit;cursor:pointer}.btn{border:0;border-radius:11px;padding:11px 14px;font-weight:700;font-size:14px}
+.primary{background:var(--navy);color:#fff}.secondary{background:var(--blue);color:var(--navy)}.danger{background:#fff0ee;color:var(--red)}.small{padding:7px 10px;font-size:12px}
+.row{display:flex;gap:8px;align-items:center}.row>*{flex:1}.row .fit{flex:0 0 auto}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}.stat{background:white;border:1px solid var(--line);border-radius:13px;padding:12px}.stat b{display:block;font-size:21px;color:var(--navy)}.stat span{font-size:11px;color:var(--muted)}
+.pill{display:inline-block;background:var(--blue);color:var(--navy);border-radius:99px;padding:4px 8px;font-size:11px;font-weight:700}
+.item{border:1px solid var(--line);border-radius:12px;padding:11px;margin:9px 0;background:#fff}
+.itemhead{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:8px}.itemhead strong{font-size:14px}
+.fields{display:grid;grid-template-columns:1.35fr .6fr .75fr;gap:7px}.fields input,.fields select{padding:9px 8px;font-size:13px}.pricefields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-top:8px}.pricefields input{padding:9px 8px;font-size:13px}.moneyline{display:flex;justify-content:space-between;gap:8px;align-items:center;background:#f4f8fb;border-radius:10px;padding:10px;margin-top:8px;font-size:13px}.moneyline b{color:var(--navy)}.product-setting{display:grid;grid-template-columns:1.2fr .8fr .7fr;gap:6px;align-items:center;margin:8px 0;padding:8px 0;border-bottom:1px solid var(--line)}.product-setting input{padding:8px;font-size:12px}.muted-small{font-size:11px;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:10px 7px;border-bottom:1px solid var(--line);vertical-align:middle}th{font-size:11px;color:var(--muted);font-weight:700;background:#f8fafc}
+.tablewrap{overflow-x:auto}.empty{text-align:center;color:var(--muted);padding:25px 8px;font-size:13px}
+.order{border:1px solid var(--line);border-radius:13px;padding:12px;margin:9px 0;background:#fff}.order h3{font-size:14px;margin:0 0 5px}.order p{font-size:12px;color:var(--muted);margin:0 0 9px}
+.warn{background:#fff8e9;border:1px solid #f2dfb6;color:#805c20;border-radius:10px;padding:10px;font-size:12px;line-height:1.6;margin:10px 0}
+.good{background:#eef8f2;border:1px solid #d5ebdc;color:#286746;border-radius:10px;padding:10px;font-size:12px;margin:10px 0}
+.hidden{display:none!important}.footer{text-align:center;color:#97a3ad;font-size:11px;padding:10px}
+@media(max-width:420px){.fields{grid-template-columns:1.25fr .6fr .8fr}.stats .stat{padding:10px}.stat b{font-size:19px}}
+</style>
+</head>
+<body>
+<header><div class="top"><h1>🥐 酒店订货管家</h1><span class="pill" style="background:#ffffff22;color:white">本机版</span></div><p>微信订单识别 · 每日录入 · 自动累计</p></header>
+<main>
+<div class="tabs">
+<button class="tab active" data-tab="entry">订单录入</button>
+<button class="tab" data-tab="summary">累计统计</button>
+<button class="tab" data-tab="history">历史订单</button>
+</div>
+
+<section id="entry" class="panel active">
+<div class="card">
+<h2>粘贴酒店微信订单</h2>
+<div class="hint">直接复制微信文字粘贴进来。系统会识别日期、商品、数量和“提前装好”分类。</div>
+<label>订单文字</label>
+<textarea id="raw" placeholder="例如：
+2026年11月18日所需面包与牛奶
+牛奶 5斤
+酸奶250ml 2
+全麦吐司 1
+大米面包 2
+另提前装好（大米面包2 脏脏包2 牛肉可颂2）"></textarea>
+<div class="row" style="margin-top:9px">
+<div><label>订单日期（自动识别，可修改）</label><input type="date" id="orderDate"></div>
+<button class="btn secondary fit" style="margin-top:27px" id="parseBtn">识别订单</button>
+</div>
+<div class="hint" style="margin-top:8px">单位规则：吐司默认“袋”；普通面包默认“个”；牛奶默认“斤”。酸奶若未写明瓶装规格或斤数，会要求你核对。</div>
+</div>
+<div id="previewCard" class="card hidden">
+<div class="row"><h2 style="margin:0">核对识别结果</h2><span class="pill" id="countPill">0条</span></div>
+<div id="parseNotes"></div>
+<div id="previewList"></div>
+<div class="moneyline"><span>原价合计：<b id="previewOriginal">¥0.00</b></span><span>优惠：<b id="previewSaved">¥0.00</b></span><span>应付：<b id="previewPay">¥0.00</b></span></div>
+<div class="hint" style="margin-top:6px">折扣填写百分数：82 代表 8.2 折，70 代表 7 折；0 表示免费，100 表示原价。每项默认勾选“保存为商品默认价格”，入账后下次自动带出；临时改价时可取消勾选。</div>
+<div class="row" style="margin-top:12px">
+<button class="btn secondary" id="reparseBtn">重新识别</button>
+<button class="btn primary" id="saveBtn">确认入账</button>
+</div>
+</div>
+<div class="card">
+<h2>商品目录</h2>
+<div class="hint">默认规则：面包类（含吐司）8.2折；瓶装酸奶7折；其他商品原价。可在下方改默认单价和折扣；录单时的临时调整只影响本张订单，不会改动默认值。</div>
+<div class="row" style="margin-top:8px">
+<input id="newProduct" placeholder="输入商品名称">
+<select id="newUnit" style="max-width:110px"><option value="个">个</option><option value="袋">袋</option><option value="包">包</option><option value="斤">斤</option><option value="瓶">瓶</option><option value="待确认">待确认</option></select>
+<button class="btn secondary fit" id="addProduct">添加</button>
+</div>
+<div id="productList" class="hint" style="margin-top:10px"></div>
+</div>
+</section>
+
+<section id="summary" class="panel">
+<div class="stats">
+<div class="stat"><b id="totalKinds">0</b><span>商品规格数</span></div>
+<div class="stat"><b id="totalQty">0</b><span>累计数量（不同单位不换算）</span></div>
+<div class="stat"><b id="orderCount">0</b><span>订单天数</span></div>
+</div>
+<div class="card">
+<h2>选择统计日期范围</h2>
+<div class="row">
+<div><label>开始日期</label><input type="date" id="filterStart"></div>
+<div><label>结束日期</label><input type="date" id="filterEnd"></div>
+</div>
+<div class="row" style="margin-top:9px"><button class="btn secondary" id="clearFilter">统计全部日期</button><button class="btn primary" id="applyFilter">应用日期范围</button></div>
+<div class="hint" id="rangeLabel" style="margin-top:8px">当前统计：全部日期</div>
+</div>
+<div class="card">
+<div class="row"><h2 style="margin:0">商品累计</h2><button class="btn secondary small fit" id="exportBtn">导出汇总表</button></div>
+<p class="hint">按商品名称和单位分别累计；导出的CSV可用Excel打开。</p>
+<div class="row" style="margin:8px 0"><button class="btn secondary small" id="exportDetailBtn">导出每日明细</button></div>
+<div class="tablewrap" id="summaryTable"></div>
+</div>
+</section>
+
+<section id="history" class="panel">
+<div class="card">
+<h2>数据备份与导入</h2>
+<p class="hint">完整备份会包含历史订单、商品目录、每个商品规格的默认单价和折扣。CSV仅用于查看统计，不适合作为完整恢复备份。</p>
+<div class="row" style="margin-top:10px">
+<button class="btn primary" id="backupBtn">导出完整备份</button>
+<label class="btn secondary" for="importFile" style="margin:0;text-align:center">选择备份文件导入</label>
+<input id="importFile" type="file" accept=".json,application/json" style="display:none">
+</div>
+<div class="hint" style="margin-top:9px">导入时可选择合并到当前数据，或用备份完整替换当前数据。建议先导出一次完整备份。</div>
+<div id="backupStatus" class="hint" style="margin-top:8px"></div>
+</div>
+<div class="card">
+<h2>历史订单</h2>
+<p class="hint">可查看每次录入的原始文字，也可以删除整张订单。删除后累计数量自动重算。</p>
+<div id="historyList"></div>
+</div>
+</section>
+<div class="footer">数据保存在当前设备的浏览器中。建议定期导出完整JSON备份。</div>
+</main>
+<script>
+const KEY='hotel_order_manager_v1';
+let db=loadDB(), parsed=[];
+function loadDB(){try{return JSON.parse(localStorage.getItem(KEY))||{products:[],orders:[]}}catch(e){return {products:[],orders:[]}}}
+function persist(){localStorage.setItem(KEY,JSON.stringify(db));renderAll()}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function todayISO(){let d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+document.getElementById('orderDate').value=todayISO();
+document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.panel').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab));renderAll()}));
+function defaultDiscount(name,unit){
+ if(/酸奶/.test(name)&&unit==='瓶')return 70;
+ if(/面包|吐司|可颂|贝果|餐包|汉堡胚|三明治/.test(name))return 82;
+ return 100;
+}
+function findProduct(name,size='',unit=''){
+ // 价格按商品名称+规格+单位区分，尤其避免250ml和500ml酸奶共用价格
+ return db.products.find(p=>p.name===name&&(p.size||'')===(size||'')&&(!unit||p.unit===unit));
+}
+function addProduct(name,unit='个',size=''){
+ name=name.trim();if(!name)return;
+ let p=findProduct(name,size,unit);
+ if(!p){db.products.push({name,unit,size:size||'',unitPrice:'',discount:defaultDiscount(name,unit)});}
+ else {p.unit=unit||p.unit;p.size=size||'';if(p.discount===undefined||p.discount===null)p.discount=defaultDiscount(name,unit);if(p.unitPrice===undefined)p.unitPrice='';}
+}
+function updateParsedSetting(i,field,value){
+ const r=parsed[i];if(!r)return;r[field]=value;
+ if(field==='size'||field==='unit'||field==='name'){
+  const p=findProduct(r.name,r.size,r.unit);
+  r.unitPrice=p?.unitPrice??'';r.discount=p?.discount??defaultDiscount(r.name,r.unit);
+  r.needsCheck=/酸奶/.test(r.name)&&r.unit==='瓶'&&!r.size;
+  renderPreview();return;
+ }
+ updatePreviewTotals();
+}
+function money(n){return '¥'+(Number(n)||0).toFixed(2)}
+function rowAmount(r){return (Number(r.qty)||0)*(Number(r.unitPrice)||0)*(Number(r.discount??100)||0)/100}
+function updatePreviewTotals(){
+ const original=parsed.reduce((s,r)=>s+(Number(r.qty)||0)*(Number(r.unitPrice)||0),0);
+ const pay=parsed.reduce((s,r)=>s+rowAmount(r),0);
+ document.getElementById('previewOriginal').textContent=money(original);
+ document.getElementById('previewSaved').textContent=money(original-pay);
+ document.getElementById('previewPay').textContent=money(pay);
+ parsed.forEach((r,i)=>{const el=document.getElementById('amount-'+i);if(el)el.textContent=money(rowAmount(r));});
+}
+function defaultUnit(name){
+ if(/吐司/.test(name))return '袋';
+ if(/牛奶|鲜奶/.test(name))return '斤';
+ if(/酸奶/.test(name))return '待确认';
+ return '个';
+}
+function dateFromText(s){
+ let m=s.match(/(20\d{2})\s*[年\/.-]\s*(\d{1,2})\s*[月\/.-]\s*(\d{1,2})\s*日?/);
+ if(m)return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+ m=s.match(/(?<!\d)(\d{1,2})\s*月\s*(\d{1,2})\s*日/);
+ if(m){let y=new Date().getFullYear();return `${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`}
+ return document.getElementById('orderDate').value||todayISO();
+}
+function splitInline(text){
+ // Split common inline product sequences e.g. 大米面包2 脏脏包2 牛肉可颂2
+ return text.replace(/[，,；;]/g,'\n').split(/\n+/).map(x=>x.trim()).filter(Boolean);
+}
+function parseLine(line,category){
+ line=line.replace(/^[\s\-•·*]+/,'').trim();
+ if(!line)return null;
+ // remove leading category marker
+ line=line.replace(/^(?:另)?(?:提前装好|提前准备|预先装好)\s*[:：]?\s*/,'').trim();
+ // quantity must be trailing number; supports "商品 2斤", "酸奶250ml 2"
+ const m=line.match(/^(.*?)\s*(\d+(?:\.\d+)?)\s*(斤|瓶|袋|包|个|箱|提|盒|杯|ml|ML|毫升)?\s*$/);
+ if(!m||!m[1].trim())return null;
+ let name=m[1].trim().replace(/[：:、\-]+$/,'').trim();
+ let qty=Number(m[2]), unit=m[3]||'';
+ let size='';
+ const sm=name.match(/(250\s*ml|500\s*ml|250毫升|500毫升)/i);
+ if(sm){size=sm[1].replace(/\s+/g,'').toLowerCase().replace('毫升','ml');name=name.replace(sm[1],'').trim()}
+ if(/酸奶/.test(name)&&size){unit=unit||'瓶';}
+ if(unit==='ml'||unit==='ML'||unit==='毫升'){size=unit.toLowerCase()==='ml'?'ml':'ml';unit='瓶'}
+ if(!unit){
+   if(/酸奶/.test(name))unit='待确认';
+   else unit=defaultUnit(name);
+ }
+ if(size && /酸奶/.test(name)) unit=unit==='斤'?'斤':'瓶';
+ return {name,qty,unit,size,category,needsCheck:unit==='待确认'||(/酸奶/.test(name)&&unit==='瓶'&&!size)};
+}
+function parseOrder(){
+ const raw=document.getElementById('raw').value.trim();if(!raw){alert('请先粘贴微信订单文字。');return}
+ const date=dateFromText(raw);document.getElementById('orderDate').value=date;
+ const lines=raw.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+ let category='正常订货', rows=[], skipped=[];
+ for(let line of lines){
+   if(/提前装好|提前准备|预先装好/.test(line)){
+     category='提前装好';
+     let content=line.replace(/^.*?(?:另)?(?:提前装好|提前准备|预先装好)\s*/,'').replace(/[（）()]/g,' ').trim();
+     // if parenthetical content appears, parse all product-number pairs from same line
+     const matches=[...content.matchAll(/([^\s\d，,;；]+(?:\s*[^\d，,;；]+?)?)\s*(\d+(?:\.\d+)?)\s*(斤|瓶|袋|包|个|箱|提|盒|杯)?(?=\s|$|[，,;；])/g)];
+     if(matches.length){
+       for(const mm of matches){let r=parseLine(mm[0],category);if(r)rows.push(r)}
+     }else{
+       const parts=splitInline(content);for(const p of parts){let r=parseLine(p,category);if(r)rows.push(r);else skipped.push(p)}
+     }
+     continue;
+   }
+   if(/^(20\d{2}年)?\s*\d{1,2}月\d{1,2}日/.test(line)||/所需面包|酒店要货|订货/.test(line))continue;
+   // switch back to normal only when explicit label
+   if(/^(正常订货|正常要货)/.test(line)){category='正常订货';continue}
+   let r=parseLine(line,category);if(r)rows.push(r);else if(/\d/.test(line))skipped.push(line);
+ }
+ // 自动带出商品目录里的默认单价和折扣；没有设置过单价时留空等待填写
+ rows.forEach(r=>{const p=findProduct(r.name,r.size,r.unit);r.unitPrice=p?.unitPrice??'';r.discount=p?.discount??defaultDiscount(r.name,r.unit)});
+ // de-dupe accidental empty/heading artifacts, keep same product repeated if categories differ
+ parsed=rows;
+ document.getElementById('previewCard').classList.remove('hidden');
+ document.getElementById('countPill').textContent=rows.length+'条商品';
+ let notes=[];
+ if(!/20\d{2}年|\d{1,2}月\d{1,2}日/.test(raw))notes.push('没有从文字中找到日期，暂用上方日期，请确认。');
+ if(rows.some(r=>r.needsCheck))notes.push('有酸奶未写明瓶装规格或计量单位，请在下方补充，避免把250ml、500ml和斤混在一起。');
+ if(skipped.length)notes.push('以下内容未能识别，请检查原文或手动补录：'+skipped.join('；'));
+ if(!rows.length)notes.push('没有识别到商品行。请检查格式，通常每行写“商品名称 数量单位”。');
+ document.getElementById('parseNotes').innerHTML=notes.map(n=>`<div class="warn">${esc(n)}</div>`).join('')||'<div class="good">识别完成，请核对商品名称、数量和单位后再入账。</div>';
+ renderPreview();
+}
+function renderPreview(){
+ const box=document.getElementById('previewList');
+ if(!parsed.length){box.innerHTML='<div class="empty">暂无识别结果</div>';updatePreviewTotals();return}
+ box.innerHTML=parsed.map((r,i)=>`<div class="item">
+ <div class="itemhead"><strong>${esc(r.name)} ${r.size?'<span class="pill">'+esc(r.size)+'</span>':''}</strong><button class="btn danger small" onclick="removeParsed(${i})">删除</button></div>
+ <div class="fields">
+ <input aria-label="商品名称" value="${esc(r.name)}" onchange="updateParsedSetting(${i},'name',this.value.trim())">
+ <input aria-label="数量" type="number" min="0" step="0.01" value="${r.qty}" onchange="parsed[${i}].qty=Number(this.value);updatePreviewTotals()">
+ <select aria-label="单位" onchange="updateParsedSetting(${i},'unit',this.value)">${['个','袋','包','斤','瓶','箱','提','盒','杯','待确认'].map(u=>`<option ${r.unit===u?'selected':''}>${u}</option>`).join('')}</select>
+ </div>
+<div class="row" style="margin-top:7px">
+  <select onchange="parsed[${i}].category=this.value">
+    <option ${r.category==='正常订货'?'selected':''}>正常订货</option>
+    <option ${r.category==='提前装好'?'selected':''}>提前装好</option>
+  </select>
+</div>
+ <div class="pricefields">
+ <div><label>单价（元）</label><input aria-label="单价" type="number" min="0" step="0.01" placeholder="输入单价" value="${r.unitPrice??''}" oninput="parsed[${i}].unitPrice=this.value;updatePreviewTotals()"></div>
+ <div><label>折扣（%）</label><input aria-label="折扣百分数" type="number" min="0" max="100" step="0.1" value="${r.discount??100}" oninput="parsed[${i}].discount=this.value;updatePreviewTotals()"></div>
+ <div><label>本项金额</label><div style="padding:10px 2px;font-weight:750;color:var(--navy)" id="amount-${i}">${money(rowAmount(r))}</div></div>
+ </div>
+ <label style="display:flex;align-items:center;gap:7px;font-weight:500;margin-top:8px"><input type="checkbox" id="remember-${i}" checked style="width:auto;margin:0"> 保存为该商品默认单价和折扣（下次自动带出）</label>
+ </div>`).join('');
+ updatePreviewTotals();
+ parsed.forEach((r,i)=>{const el=document.getElementById('amount-'+i);if(el)el.textContent=money(rowAmount(r));});
+}
+function removeParsed(i){parsed.splice(i,1);renderPreview();document.getElementById('countPill').textContent=parsed.length+'条商品'}
+document.getElementById('parseBtn').onclick=parseOrder;
+document.getElementById('reparseBtn').onclick=parseOrder;
+document.getElementById('saveBtn').onclick=()=>{
+ if(!parsed.length){alert('没有可入账的商品。');return}
+ if(parsed.some(r=>!r.name||!Number.isFinite(r.qty)||r.qty<0||r.unit==='待确认'||(/酸奶/.test(r.name)&&r.unit==='瓶'&&!r.size)||r.unitPrice===''||!Number.isFinite(Number(r.unitPrice))||Number(r.unitPrice)<0||!Number.isFinite(Number(r.discount))||Number(r.discount)<0||Number(r.discount)>100)){
+   alert('请先补全商品名称、数量、单价和有效折扣，以及酸奶的单位或瓶装规格。');return;
+ }
+ const date=document.getElementById('orderDate').value;if(!date){alert('请确认订单日期。');return}
+ const raw=document.getElementById('raw').value.trim();
+ // duplicate warning based on exact date and original text
+ if(db.orders.some(o=>o.date===date&&o.raw===raw)&&!confirm('发现相同日期、相同内容的订单，可能已经录入过。仍要再次入账吗？'))return;
+ parsed.forEach((r,i)=>{
+   addProduct(r.name,r.unit,r.size);
+   const p=findProduct(r.name,r.size,r.unit);
+   // 默认勾选：确认入账时，把本次确认的单价和折扣记入商品目录；取消勾选则只用于本单。
+   if(p&&document.getElementById(`remember-${i}`)?.checked){
+     p.unit=r.unit;
+     p.unitPrice=String(Number(r.unitPrice));
+     p.discount=Number(r.discount??defaultDiscount(r.name,r.unit));
+   }
+ });
+ db.orders.push({id:Date.now()+Math.random(),date,raw,items:parsed.map(x=>({...x,unitPrice:Number(x.unitPrice)||0,discount:Number(x.discount??100),amount:rowAmount(x)}))});
+ document.getElementById('raw').value='';document.getElementById('previewCard').classList.add('hidden');parsed=[];
+ persist();alert('订单已入账，累计统计已更新。');
+};
+document.getElementById('addProduct').onclick=()=>{
+ const n=document.getElementById('newProduct').value.trim(),u=document.getElementById('newUnit').value;
+ if(!n){alert('请输入商品名称');return}
+ if(db.products.some(p=>p.name===n&&(!p.size||p.size===''))){alert('商品目录里已经有这个商品名称。');return}
+ addProduct(n,u);document.getElementById('newProduct').value='';persist();
+};
+function keyOf(r){return [r.name,r.size||'',r.unit].join('|')}
+function selectedOrders(){
+ const start=document.getElementById('filterStart')?.value||'';
+ const end=document.getElementById('filterEnd')?.value||'';
+ return db.orders.filter(o=>(!start||o.date>=start)&&(!end||o.date<=end));
+}
+function getSummary(){
+ const map=new Map();
+ selectedOrders().forEach(o=>o.items.forEach(r=>{
+  const k=keyOf(r);if(!map.has(k))map.set(k,{name:r.name,size:r.size||'',unit:r.unit,qty:0,normal:0,pre:0});
+  let x=map.get(k);x.qty+=Number(r.qty)||0;if(r.category==='提前装好')x.pre+=Number(r.qty)||0;else x.normal+=Number(r.qty)||0;
+ }));
+ return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,'zh-CN')||a.size.localeCompare(b.size));
+}
+function renderSummary(){
+ const rows=getSummary(), orders=selectedOrders();
+ document.getElementById('totalKinds').textContent=rows.length;
+ document.getElementById('totalQty').textContent=rows.reduce((s,r)=>s+r.qty,0);
+ document.getElementById('orderCount').textContent=new Set(orders.map(o=>o.date)).size;
+ const start=document.getElementById('filterStart')?.value||'',end=document.getElementById('filterEnd')?.value||'';
+ document.getElementById('rangeLabel').textContent=(start||end)?`当前统计：${start||'最早'} 至 ${end||'最近'}`:'当前统计：全部日期';
+ document.getElementById('summaryTable').innerHTML=rows.length?`<table><thead><tr><th>商品/规格</th><th>正常订货</th><th>提前装好</th><th>累计</th></tr></thead><tbody>${rows.map(r=>`<tr><td><b>${esc(r.name)}</b><br><span class="hint">${esc(r.size||'')} ${esc(r.unit)}</span></td><td>${r.normal} ${esc(r.unit)}</td><td>${r.pre} ${esc(r.unit)}</td><td><b>${r.qty} ${esc(r.unit)}</b></td></tr>`).join('')}</tbody></table>`:'<div class="empty">所选日期范围内没有订单。</div>';
+}
+function renderHistory(){
+ const box=document.getElementById('historyList');
+ if(!db.orders.length){box.innerHTML='<div class="empty">还没有历史订单。</div>';return}
+ box.innerHTML=[...db.orders].sort((a,b)=>b.date.localeCompare(a.date)).map(o=>`<div class="order">
+ <div class="row"><div><h3>${esc(o.date)} 订单</h3><p>${o.items.length}条商品 · ${o.items.reduce((s,x)=>s+Number(x.qty),0)}（不同单位数量相加，仅供参考） · 应付 ${o.items.some(x=>x.unitPrice===undefined)?'旧订单未计价':money(o.items.reduce((s,x)=>s+(Number(x.amount)||0),0))}</p></div><button class="btn danger small fit" onclick="deleteOrder('${o.id}')">删除订单</button></div>
+ <div class="hint">${o.items.map(x=>`${esc(x.category==='提前装好'?'[提前装好] ':'')}${esc(x.name)}${x.size?' '+esc(x.size):''} ${x.qty}${esc(x.unit)}${x.unitPrice!==undefined?' · '+money(x.amount??rowAmount(x)):''}`).join('　/　')}</div>
+ <details style="margin-top:8px"><summary class="hint">查看原始微信文字</summary><pre style="white-space:pre-wrap;font:12px/1.5 inherit;background:#f7f9fb;padding:8px;border-radius:8px">${esc(o.raw)}</pre></details>
+ </div>`).join('');
+}
+function deleteOrder(id){if(!confirm('确定删除这张订单吗？删除后累计数量会自动减少。'))return;db.orders=db.orders.filter(o=>String(o.id)!==String(id));persist()}
+function renderProducts(){
+ const box=document.getElementById('productList');
+ if(!db.products.length){box.innerHTML='<div class="empty">还没有商品，录入订单后会自动建立商品目录。</div>';return}
+ box.innerHTML=db.products.map((p,i)=>`<div class="product-setting">
+ <div><b>${esc(p.name)}${p.size?' · '+esc(p.size):''}</b><div class="muted-small">${esc(p.unit||'')}</div></div>
+ <div><label>默认单价（元）</label><input type="number" min="0" step="0.01" placeholder="未设置" value="${p.unitPrice??''}" onchange="db.products[${i}].unitPrice=this.value;persist()"></div>
+ <div><label>默认折扣（%）</label><input type="number" min="0" max="100" step="0.1" value="${p.discount??defaultDiscount(p.name,p.unit)}" onchange="if(this.value<0||this.value>100){alert('折扣请填写0到100之间');this.value=db.products[${i}].discount??100;return}db.products[${i}].discount=Number(this.value);persist()"></div>
+ </div>`).join('');
+}
+function renderAll(){renderSummary();renderHistory();renderProducts()}
+function downloadCSV(rows,filename){
+ const csv='\ufeff'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+ const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();URL.revokeObjectURL(url);
+}
+document.getElementById('exportBtn').onclick=()=>{
+ const start=document.getElementById('filterStart').value,end=document.getElementById('filterEnd').value;
+ const rows=[['统计开始日期',start||'全部'],['统计结束日期',end||'全部'],[],['商品名称','规格','单位','正常订货累计','提前装好累计','总累计']];
+ getSummary().forEach(r=>rows.push([r.name,r.size,r.unit,r.normal,r.pre,r.qty]));
+ downloadCSV(rows,'酒店订货汇总统计.csv');
+};
+document.getElementById('exportDetailBtn').onclick=()=>{
+ const rows=[['订单日期','商品名称','规格','数量','单位','订单分类','单价','折扣百分数','金额']];
+ selectedOrders().sort((a,b)=>a.date.localeCompare(b.date)).forEach(o=>o.items.forEach(r=>rows.push([o.date,r.name,r.size,r.qty,r.unit,r.category,r.unitPrice??'',r.discount??100,r.amount??rowAmount(r)])));
+ downloadCSV(rows,'酒店每日订货明细.csv');
+};
+
+function downloadJSON(obj,filename){
+ const blob=new Blob([JSON.stringify(obj,null,2)],{type:'application/json;charset=utf-8'});
+ const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=filename;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+document.getElementById('backupBtn').onclick=()=>{
+ const payload={app:'酒店订货管家',backupVersion:1,exportedAt:new Date().toISOString(),data:db};
+ downloadJSON(payload,'酒店订货管家_完整备份_'+todayISO()+'.json');
+ document.getElementById('backupStatus').textContent='完整备份已导出。请把JSON文件保存到手机或云盘。';
+};
+document.getElementById('importFile').onchange=async function(){
+ const file=this.files&&this.files[0];if(!file)return;
+ try{
+  const parsedFile=JSON.parse(await file.text());
+  const incoming=parsedFile.data||parsedFile;
+  if(!incoming||!Array.isArray(incoming.products)||!Array.isArray(incoming.orders))throw new Error('文件格式不正确，未找到商品目录和订单数据。');
+  if(!incoming.orders.every(o=>o&&o.date&&Array.isArray(o.items)))throw new Error('订单数据结构不完整，已取消导入。');
+  const mode=prompt('请输入导入方式：\n1 = 合并到当前数据（推荐）\n2 = 用备份完整替换当前数据\n\n注意：替换会覆盖本机当前订单和商品目录。','1');
+  if(mode!=='1'&&mode!=='2')return;
+  if(mode==='2'&&!confirm('确定用备份完整替换当前数据吗？建议先导出当前完整备份。'))return;
+  if(mode==='2'){
+   db={products:incoming.products,orders:incoming.orders};
+  }else{
+   const productMap=new Map();
+   [...db.products,...incoming.products].forEach(p=>productMap.set([p.name,p.size||'',p.unit||''].join('|'),p));
+   const orderMap=new Map();
+   [...db.orders,...incoming.orders].forEach(o=>orderMap.set(String(o.id??[o.date,o.raw].join('|')),o));
+   db={products:[...productMap.values()],orders:[...orderMap.values()]};
+  }
+  persist();
+  document.getElementById('backupStatus').textContent=`导入成功：当前共有${db.products.length}条商品规格、${db.orders.length}张订单。`;
+  alert('数据导入成功！');
+ }catch(e){alert('导入失败：'+e.message);}
+ finally{this.value='';}
+};
+
+document.getElementById('applyFilter').onclick=()=>{
+ const a=document.getElementById('filterStart').value,b=document.getElementById('filterEnd').value;
+ if(a&&b&&a>b){alert('开始日期不能晚于结束日期。');return}renderSummary();
+};
+document.getElementById('clearFilter').onclick=()=>{document.getElementById('filterStart').value='';document.getElementById('filterEnd').value='';renderSummary()};
+renderAll();
+</script>
+</body>
+</html>
