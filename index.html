@@ -859,12 +859,26 @@ function renderHistory(){
     `;
   }).join("");
 }
+
 function deleteOrder(id){
   if(!confirm("确定删除这张历史订单吗？删除后不能自动恢复。"))return;
-  db.orders=db.orders.filter(o=>o.id!==id);
+
+  const index=db.orders.findIndex(o=>
+    String(o.id||"")===String(id||"")
+  );
+
+  if(index===-1){
+    alert("没有找到这张订单，请刷新历史记录后重试。");
+    return;
+  }
+
+  db.orders.splice(index,1);
   persist();
   renderHistory();
+
+  alert("订单已删除！");
 }
+
 
 /* =========================
    七、JSON备份与恢复
