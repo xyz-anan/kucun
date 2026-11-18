@@ -1072,38 +1072,73 @@ function exportExcel(){
       o.date>=start && o.date<=end
     );
 
-    // 汇总同名、同单位商品
-    const summary={};
 
-    selectedOrders.forEach(o=>{
-      (o.items||[]).forEach(x=>{
-        const name=String(x.name||"未命名商品").trim();
-        const unit=x.unit||"个";
-        const key=name+"_"+unit;
 
-        if(!summary[key]){
-          summary[key]={
-            name,
-            unit,
-            quantity:0
-          };
-        }
+const summary={};
 
-        summary[key].quantity+=num(x.quantity,0);
-      });
-    });
+selectedOrders.forEach(o=>{
+  (o.items||[]).forEach(x=>{
+    const name=String(x.name||"未命名商品").trim();
+    const unit=x.unit||"个";
+    const price=num(x.price,0);
+    const discount=num(x.discount,82);
 
-    const summaryRows=[
-      ["统计开始日期",start],
-      ["统计结束日期",end],
-      ["统计订单数量",selectedOrders.length],
-      [],
-      ["商品名称","单位","实收总数量"],
-      ...Object.values(summary)
-        .sort((a,b)=>a.name.localeCompare(b.name,"zh-CN"))
-        .map(x=>[x.name,x.unit,x.quantity])
-    ];
+    const key=JSON.stringify([name,unit,price,discount]);
 
+    if(!summary[key]){
+      summary[key]={
+        name,
+        unit,
+        price,
+        discount,
+        quantity:0,
+        amount:0
+      };
+    }
+
+    summary[key].quantity+=num(x.quantity,0);
+    summary[key].amount+=Number.isFinite(Number(x.amount))
+      ?Number(x.amount)
+      :num(x.quantity,0)*price*discount/100;
+  });
+});
+
+const summaryList=Object.values(summary)
+  .sort((a,b)=>a.name.localeCompare(b.name,"zh-CN"));
+
+
+const totalQuantity=summaryList.reduce(
+  (sum,x)=>sum+x.quantity,0
+);
+
+const totalAmount=summaryList.reduce(
+  (sum,x)=>sum+x.amount,0
+);
+
+const summaryRows=[
+  ["统计开始日期",start],
+  ["统计结束日期",end],
+  ["单品名称","原价","折扣","折后单价","数量","折后总价"],
+  ...summaryList.map(x=>[
+    x.name,
+    x.price,
+    x.discount/10,
+    Number((x.price*x.discount/100).toFixed(3)),
+    x.quantity+x.unit,
+    Number(x.amount.toFixed(2))
+  ]),
+  [],
+  ["本期订货总量","","","",totalQuantity,""],
+  ["本期订货总金额","","","","",
+    Number(totalAmount.toFixed(2))
+  ]
+];
+
+const summarySheet=XLSX.utils.aoa_to_sheet(summaryRows);
+
+XLSX.utils.book_append_sheet(
+  wb,summarySheet,"日期范围汇总"
+);
     XLSX.utils.book_append_sheet(
       wb,XLSX.utils.aoa_to_sheet(productRows),"商品目录"
     );
@@ -1112,9 +1147,6 @@ function exportExcel(){
     );
     XLSX.utils.book_append_sheet(
       wb,XLSX.utils.aoa_to_sheet(itemRows),"订货明细"
-    );
-    XLSX.utils.book_append_sheet(
-      wb,XLSX.utils.aoa_to_sheet(summaryRows),"日期范围汇总"
     );
 
     XLSX.writeFile(
