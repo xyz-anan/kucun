@@ -927,6 +927,8 @@ function renderHistory(){
   }
 
   box.innerHTML=orders.map(o=>{
+  console.log("历史订单数据：",o);
+console.log("订单商品明细：",o.items);
     const amount=(o.items||[]).reduce((s,x)=>
       s+num(x.amount,num(x.quantity)*num(x.price)*num(x.discount,82)/100),0);
 
@@ -992,8 +994,12 @@ function renderHistory(){
           ${esc(o.date)}　订单金额：¥${money(amount)}
           ${isEditing?'<span class="tag">正在编辑</span>':''}
         </div>
-        ${details}
-        ${buttons}
+      <div style="max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:4px">
+  ${details}
+</div>
+<div>
+  ${buttons}
+</div>
       </div>
     `;
   }).join("");
