@@ -208,6 +208,30 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 
 <section class="page" id="page-history">
   <div class="card">
+  <div class="item" style="margin-top:12px">
+  <h3>🔎 查找历史订单</h3>
+
+  <label>按日期查找</label>
+  <input type="date" id="historyDateFilter">
+
+  <label>按商品名称查找</label>
+  <input
+    type="text"
+    id="historyProductFilter"
+    placeholder="输入商品名称，例如：酸奶"
+  >
+
+  <div class="row" style="margin-top:12px">
+    <button class="btn primary" style="flex:1" onclick="filterHistory()">
+      查询订单
+    </button>
+    <button class="btn" style="flex:1" onclick="resetHistoryFilter()">
+      重置
+    </button>
+  </div>
+
+  <div class="hint" id="historyFilterStatus"></div>
+</div>
     <h2>📚 历史订单</h2>
 
 <div id="editOrderBox" style="display:none;margin-bottom:15px">
@@ -919,7 +943,19 @@ function exportSummaryCSV(){
 
 function renderHistory(){
   const box=document.getElementById("historyContent");
-  const orders=[...db.orders].sort((a,b)=>b.date.localeCompare(a.date));
+const dateFilter=document.getElementById("historyDateFilter")?.value||"";
+const productFilter=(document.getElementById("historyProductFilter")?.value||"").trim();
+
+const orders=[...db.orders]
+  .filter(o=>{
+    const dateMatch=!dateFilter||o.date===dateFilter;
+    const productMatch=!productFilter||
+      (o.items||[]).some(x=>
+        String(x.name||"").includes(productFilter)
+      );
+    return dateMatch&&productMatch;
+  })
+  .sort((a,b)=>b.date.localeCompare(a.date));
 
   if(!orders.length){
     box.innerHTML='<div class="empty">还没有历史订单</div>';
@@ -1003,6 +1039,24 @@ console.log("订单商品明细：",o.items);
       </div>
     `;
   }).join("");
+}
+
+function filterHistory(){
+  renderHistory();
+
+  const date=document.getElementById("historyDateFilter").value;
+  const product=document.getElementById("historyProductFilter").value.trim();
+
+  document.getElementById("historyFilterStatus").textContent=
+    "筛选条件："+(date||"全部日期")+" / "+(product||"全部商品");
+}
+
+function resetHistoryFilter(){
+  document.getElementById("historyDateFilter").value="";
+  document.getElementById("historyProductFilter").value="";
+  document.getElementById("historyFilterStatus").textContent="已显示全部历史订单";
+
+  renderHistory();
 }
 
 function editOrder(id){
