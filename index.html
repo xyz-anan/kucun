@@ -251,8 +251,16 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
     <button class="btn primary full" onclick="exportJSON()">导出 JSON 备份</button>
     <button class="btn full" onclick="document.getElementById('backupFile').click()">导入 JSON 备份</button>
     <input type="file" id="backupFile" accept=".json,application/json" style="display:none" onchange="importBackup.call(this,event)">
-    <hr>
-    <button class="btn green full" onclick="exportExcel()">导出 Excel 备份</button>
+
+<hr>
+<div style="margin:12px 0">
+  <label>统计开始日期</label>
+  <input type="date" id="excelStartDate" style="width:100%;margin:5px 0 10px">
+
+  <label>统计结束日期</label>
+  <input type="date" id="excelEndDate" style="width:100%;margin:5px 0 10px">
+</div>
+<button class="btn green full" onclick="exportExcel()">导出 Excel 备份</button>
     <button class="btn full" onclick="document.getElementById('excelFile').click()">导入 Excel 备份</button>
     <input type="file" id="excelFile" accept=".xlsx,.xls" style="display:none" onchange="importExcel.call(this,event)">
     <div id="backupStatus" class="hint"></div>
@@ -1022,14 +1030,27 @@ function loadExcelLibrary(callback){
   document.head.appendChild(script);
 }
 
+
 function exportExcel(){
+  const start=document.getElementById("excelStartDate").value;
+  const end=document.getElementById("excelEndDate").value;
+
+  if(!start||!end){
+    alert("请先选择统计开始日期和结束日期。");
+    return;
+  }
+  if(start>end){
+    alert("开始日期不能晚于结束日期。");
+    return;
+  }
+
   loadExcelLibrary(()=>{
     const wb=XLSX.utils.book_new();
 
     const productRows=[
       ["商品ID","标准商品名称","单位","默认单价","默认折扣","商品别名"],
       ...db.products.map(p=>[
-        p.id,p.name,p.unit,p.price,p.discount,p.aliases.join("、")
+        p.id,p.name,p.unit,p.price,p.discount,(p.aliases||[]).join("、")
       ])
     ];
 
@@ -1046,6 +1067,43 @@ function exportExcel(){
       ]))
     ];
 
+    // 按日期筛选已入账订单
+    const selectedOrders=db.orders.filter(o=>
+      o.date>=start && o.date<=end
+    );
+
+    // 汇总同名、同单位商品
+    const summary={};
+
+    selectedOrders.forEach(o=>{
+      (o.items||[]).forEach(x=>{
+        const name=String(x.name||"未命名商品").trim();
+        const unit=x.unit||"个";
+        const key=name+"_"+unit;
+
+        if(!summary[key]){
+          summary[key]={
+            name,
+            unit,
+            quantity:0
+          };
+        }
+
+        summary[key].quantity+=num(x.quantity,0);
+      });
+    });
+
+    const summaryRows=[
+      ["统计开始日期",start],
+      ["统计结束日期",end],
+      ["统计订单数量",selectedOrders.length],
+      [],
+      ["商品名称","单位","实收总数量"],
+      ...Object.values(summary)
+        .sort((a,b)=>a.name.localeCompare(b.name,"zh-CN"))
+        .map(x=>[x.name,x.unit,x.quantity])
+    ];
+
     XLSX.utils.book_append_sheet(
       wb,XLSX.utils.aoa_to_sheet(productRows),"商品目录"
     );
@@ -1055,9 +1113,16 @@ function exportExcel(){
     XLSX.utils.book_append_sheet(
       wb,XLSX.utils.aoa_to_sheet(itemRows),"订货明细"
     );
+    XLSX.utils.book_append_sheet(
+      wb,XLSX.utils.aoa_to_sheet(summaryRows),"日期范围汇总"
+    );
 
-    XLSX.writeFile(wb,"酒店订货管家_"+today()+".xlsx");
-    document.getElementById("backupStatus").textContent="Excel文件已导出。";
+    XLSX.writeFile(
+      wb,"酒店订货管家_"+start+"_至_"+end+".xlsx"
+    );
+
+    document.getElementById("backupStatus").textContent=
+      "Excel已导出，共统计"+selectedOrders.length+"张订单。";
   });
 }
 
