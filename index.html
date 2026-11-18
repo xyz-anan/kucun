@@ -351,7 +351,6 @@ function normalizeProduct(p){
     aliases:Array.isArray(p.aliases)?p.aliases.map(String).filter(Boolean):[],
   };
 }
-
 function migrateDB(old){
   const result={products:[],orders:[]};
   if(!old||typeof old!=="object")return result;
@@ -373,18 +372,13 @@ function migrateDB(old){
       category:x.category||"正常订货",
       price:num(x.price,0),
       discount:num(x.discount,82),
-      amount:Math.trunc((
-        (Number.isFinite(Number(x.amount))
-          ?num(x.amount)
-          :num(x.quantity)*num(x.price)*num(x.discount,82)/100
-        )+0.000000001
-      )*10)/10
+      amount:Number.isFinite(Number(x.amount))
+        ?num(x.amount)
+        :num(x.quantity)*num(x.price)*num(x.discount,82)/100
     }))
   }));
-
   return result;
 }
-
 function loadDB(){
   try{
     const raw=localStorage.getItem(DB_KEY);
@@ -683,7 +677,7 @@ function saveOrder(){
       category:x.category||"正常订货",
       price,
       discount,
-amount:Math.trunc((quantity*price*discount/100+0.000000001)*10)/10
+      amount:Math.round(quantity*price*discount)/100
     });
   }
 
@@ -1144,7 +1138,7 @@ function saveEditedOrder(){
       category:categories[i].value,
       price,
       discount,
-      amount:Math.trunc((quantity*price*discount/100+0.000000001)*10)/10
+      amount:Math.round(quantity*price*discount)/100
     });
   }
 
@@ -1330,7 +1324,7 @@ function exportExcel(){
       ["订单ID","订单日期","商品ID","商品名称","数量","单位","订货类别","单价","折扣","金额"],
       ...db.orders.flatMap(o=>(o.items||[]).map(x=>[
         o.id,o.date,x.productId||"",x.name,x.quantity,x.unit,
-        x.category,x.price,x.discount,Math.trunc((num(x.amount)+0.000000001)*10)/10
+        x.category,x.price,x.discount,x.amount
       ]))
     ];
 
@@ -1390,14 +1384,14 @@ const summaryRows=[
     x.name,
     x.price,
     x.discount/10,
-    Math.trunc((x.price*x.discount/100+0.000000001)*10)/10,
+    Number((x.price*x.discount/100).toFixed(3)),
     x.quantity+x.unit,
-    Math.trunc((x.amount+0.000000001)*10)/10
+    Number(x.amount.toFixed(2))
   ]),
   [],
   ["本期订货总量","","","",totalQuantity,""],
   ["本期订货总金额","","","","",
-    Math.trunc((totalAmount+0.000000001)*10)/10
+    Number(totalAmount.toFixed(2))
   ]
 ];
 
