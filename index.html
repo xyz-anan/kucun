@@ -916,35 +916,110 @@ function exportSummaryCSV(){
    六、历史订单
 ========================= */
 
+
 function renderHistory(){
   const box=document.getElementById("historyContent");
   const orders=[...db.orders].sort((a,b)=>b.date.localeCompare(a.date));
+
   if(!orders.length){
     box.innerHTML='<div class="empty">还没有历史订单</div>';
     return;
   }
+
   box.innerHTML=orders.map(o=>{
     const amount=(o.items||[]).reduce((s,x)=>
       s+num(x.amount,num(x.quantity)*num(x.price)*num(x.discount,82)/100),0);
-    return `
-      <div class="item">
-        <div class="item-title">${esc(o.date)}　订单金额：¥${money(amount)}</div>
-        ${(o.items||[]).map(x=>`
+
+    const isEditing=String(editingOrderId)===String(o.id);
+
+    const details=isEditing
+      ? `
+        <div style="margin-top:12px">
+          <label>订单日期</label>
+          <input type="date" class="edit-order-date" value="${esc(o.date)}">
+
+          ${(o.items||[]).map(x=>`
+            <div class="item" style="margin-top:10px">
+              <label>商品名称</label>
+              <input class="edit-item-name" value="${esc(x.name)}">
+
+              <label>数量</label>
+              <input class="edit-item-quantity" type="number" min="0" step="0.01" value="${num(x.quantity)}">
+
+              <label>单位</label>
+              <input class="edit-item-unit" value="${esc(x.unit)}">
+
+              <label>订货类别</label>
+              <select class="edit-item-category">
+                <option value="正常订货" ${x.category==="正常订货"?"selected":""}>正常订货</option>
+                <option value="提前装好" ${x.category==="提前装好"?"selected":""}>提前装好</option>
+              </select>
+
+              <label>单价（元）</label>
+              <input class="edit-item-price" type="number" min="0" step="0.01" value="${num(x.price)}">
+
+              <label>折扣（82代表82折）</label>
+              <input class="edit-item-discount" type="number" min="0" max="100" step="0.1" value="${num(x.discount,82)}">
+            </div>
+          `).join("")}
+        </div>
+      `
+      : (o.items||[]).map(x=>`
           <div style="padding:5px 0;border-bottom:1px solid #f0f2f4">
             ${esc(x.name)}　${esc(x.quantity)} ${esc(x.unit)}
             <span class="tag">${esc(x.category)}</span>
             <div class="hint">单价 ¥${money(x.price)} × ${money(x.discount)}折 = ¥${money(x.amount)}</div>
           </div>
-        `).join("")}
-        <button class="btn danger small" style="margin-top:10px" onclick="deleteOrder('${o.id}')">删除整张订单</button>
-        <button class="btn primary small" style="margin-top:10px;margin-left:6px" onclick="editOrder('${o.id}')">编辑订单</button>
+        `).join("");
+
+    const buttons=isEditing
+      ? `
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn danger" style="flex:1" onclick="cancelEditOrder()">取消修改</button>
+          <button class="btn primary" style="flex:1" onclick="saveEditedOrder()">保存修改</button>
+        </div>
+      `
+      : `
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn danger small" style="flex:1" onclick="deleteOrder('${o.id}')">删除整张订单</button>
+          <button class="btn primary small" style="flex:1" onclick="editOrder('${o.id}')">编辑订单</button>
+        </div>
+      `;
+
+    return `
+      <div class="item" id="history-order-${esc(o.id)}">
+        <div class="item-title">
+          ${esc(o.date)}　订单金额：¥${money(amount)}
+          ${isEditing?'<span class="tag">正在编辑</span>':''}
+        </div>
+        ${details}
+        ${buttons}
       </div>
     `;
   }).join("");
 }
 
 function editOrder(id){
-  function saveEditedOrder(){
+  const order=db.orders.find(o=>String(o.id)===String(id));
+
+  if(!order){
+    alert("没有找到这张订单。");
+    return;
+  }
+
+  editingOrderId=order.id;
+  renderHistory();
+
+  const card=document.getElementById("history-order-"+id);
+  if(card){
+    card.scrollIntoView({
+      behavior:"smooth",
+      block:"center"
+    });
+  }
+}
+
+function saveEditedOrder(){
   if(!editingOrderId){
     alert("没有正在编辑的订单。");
     return;
@@ -959,18 +1034,25 @@ function editOrder(id){
     return;
   }
 
-  const date=document.getElementById("editOrderDate").value;
+  const card=document.getElementById("history-order-"+editingOrderId);
+  if(!card){
+    alert("没有找到正在编辑的订单界面。");
+    return;
+  }
+
+  const date=card.querySelector(".edit-order-date").value;
+
   if(!date){
     alert("请填写订单日期。");
     return;
   }
 
-  const names=document.querySelectorAll(".edit-item-name");
-  const quantities=document.querySelectorAll(".edit-item-quantity");
-  const units=document.querySelectorAll(".edit-item-unit");
-  const categories=document.querySelectorAll(".edit-item-category");
-  const prices=document.querySelectorAll(".edit-item-price");
-  const discounts=document.querySelectorAll(".edit-item-discount");
+  const names=card.querySelectorAll(".edit-item-name");
+  const quantities=card.querySelectorAll(".edit-item-quantity");
+  const units=card.querySelectorAll(".edit-item-unit");
+  const categories=card.querySelectorAll(".edit-item-category");
+  const prices=card.querySelectorAll(".edit-item-price");
+  const discounts=card.querySelectorAll(".edit-item-discount");
 
   const items=[];
 
@@ -1010,14 +1092,38 @@ function editOrder(id){
 
   persist();
 
+  const savedId=editingOrderId;
   editingOrderId=null;
-  document.getElementById("editOrderBox").style.display="none";
 
   renderHistory();
   renderSummary();
 
+  const savedCard=document.getElementById("history-order-"+savedId);
+  if(savedCard){
+    savedCard.scrollIntoView({
+      behavior:"smooth",
+      block:"center"
+    });
+  }
+
   alert("原订单已修改成功！");
 }
+
+function cancelEditOrder(){
+  const cancelId=editingOrderId;
+  editingOrderId=null;
+
+  renderHistory();
+
+  const card=document.getElementById("history-order-"+cancelId);
+  if(card){
+    card.scrollIntoView({
+      behavior:"smooth",
+      block:"center"
+    });
+  }
+}
+
 function deleteOrder(id){
   if(!confirm("确定删除这张历史订单吗？删除后不能自动恢复。"))return;
 
