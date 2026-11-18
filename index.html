@@ -865,77 +865,198 @@ function getFilteredOrders(){
     (!start||o.date>=start)&&(!end||o.date<=end)
   );
 }
+
 function renderSummary(){
   const orders=getFilteredOrders();
   const totals={};
-  let totalAmount=0,totalCount=0,normalCount=0,earlyCount=0;
+  let totalAmount=0;
+  let normalCount=0;
+  let earlyCount=0;
+  let totalOriginal=0;
 
   for(const o of orders){
     for(const x of o.items||[]){
-      const key=x.name+"|"+x.unit;
+      const name=String(x.name||"未命名商品").trim();
+      const unit=x.unit||"个";
+      const price=num(x.price,0);
+      const discount=num(x.discount,82);
+
+      const key=JSON.stringify([name,unit,price,discount]);
+
       if(!totals[key]){
-        totals[key]={name:x.name,unit:x.unit,normal:0,early:0,total:0,amount:0};
+        totals[key]={
+          name,unit,price,discount,
+          normal:0,
+          early:0,
+          total:0,
+          originalAmount:0,
+          amount:0
+        };
       }
+
+      const t=totals[key];
       const q=num(x.quantity);
-      totals[key].total+=q;
-      totals[key].amount+=num(x.amount,q*num(x.price)*num(x.discount,82)/100);
+      const amount=num(
+        x.amount,
+        q*price*discount/100
+      );
+
+      t.total+=q;
+      t.originalAmount+=q*price;
+      t.amount+=amount;
+
       if(x.category==="提前装好"){
-        totals[key].early+=q;
+        t.early+=q;
         earlyCount+=q;
       }else{
-        totals[key].normal+=q;
+        t.normal+=q;
         normalCount+=q;
       }
-      totalCount+=q;
-      totalAmount+=num(x.amount,q*num(x.price)*num(x.discount,82)/100);
+
+      totalOriginal+=q*price;
+      totalAmount+=amount;
     }
   }
 
-  const rows=Object.values(totals).sort((a,b)=>a.name.localeCompare(b.name,"zh-CN"));
+  const rows=Object.values(totals)
+    .sort((a,b)=>a.name.localeCompare(b.name,"zh-CN"));
+
   document.getElementById("summaryContent").innerHTML=`
     <div class="stat-grid" style="margin-top:14px">
-      <div class="stat"><small>订单数量</small><div class="summary-number">${orders.length}</div></div>
-      <div class="stat"><small>订货总金额</small><div class="summary-number">¥${money(totalAmount)}</div></div>
-      <div class="stat"><small>正常订货数量</small><div class="summary-number">${money(normalCount)}</div></div>
-      <div class="stat"><small>提前装好数量</small><div class="summary-number">${money(earlyCount)}</div></div>
+      <div class="stat">
+        <small>订单数量</small>
+        <div class="summary-number">${orders.length}</div>
+      </div>
+      <div class="stat">
+        <small>订货总金额</small>
+        <div class="summary-number">¥${money(totalAmount)}</div>
+      </div>
+      <div class="stat">
+        <small>正常订货数量</small>
+        <div class="summary-number">${money(normalCount)}</div>
+      </div>
+      <div class="stat">
+        <small>打包数量</small>
+        <div class="summary-number">${money(earlyCount)}</div>
+      </div>
     </div>
+
     <h3>商品累计明细</h3>
+
     <div class="table-wrap">
       <table>
-        <thead><tr><th>商品</th><th>单位</th><th>正常订货</th><th>提前装好</th><th>总量</th><th>金额</th></tr></thead>
+        <thead>
+          <tr>
+            <th>商品</th>
+            <th>原价</th>
+            <th>数量（正常/打包）</th>
+            <th>折扣</th>
+            <th>折后单价</th>
+            <th>原价总额</th>
+            <th>折后总额</th>
+          </tr>
+        </thead>
+
         <tbody>
-          ${rows.map(x=>`<tr>
-            <td>${esc(x.name)}</td><td>${esc(x.unit)}</td>
-            <td>${money(x.normal)}</td><td>${money(x.early)}</td>
-            <td><strong>${money(x.total)}</strong></td><td>¥${money(x.amount)}</td>
-          </tr>`).join("")||'<tr><td colspan="6" class="empty">当前日期范围没有订单</td></tr>'}
+          ${rows.map(x=>`
+            <tr>
+              <td>${esc(x.name)}</td>
+              <td>¥${money(x.price)}</td>
+              <td>${money(x.normal)} / ${money(x.early)} ${esc(x.unit)}</td>
+              <td>${money(x.discount/10)}折</td>
+              <td>¥${money(x.price*x.discount/100)}</td>
+              <td>¥${money(x.originalAmount)}</td>
+              <td><strong>¥${money(x.amount)}</strong></td>
+            </tr>
+          `).join("")||'<tr><td colspan="7" class="empty">当前日期范围没有订单</td></tr>'}
         </tbody>
+
+        <tfoot>
+          <tr>
+            <th>合计</th>
+            <th></th>
+            <th>${money(normalCount)} / ${money(earlyCount)}</th>
+            <th></th>
+            <th></th>
+            <th>¥${money(totalOriginal)}</th>
+            <th>¥${money(totalAmount)}</th>
+          </tr>
+        </tfoot>
       </table>
     </div>
   `;
 }
+
 function exportSummaryCSV(){
   const orders=getFilteredOrders();
-  const rows=[["商品","单位","正常订货","提前装好","总量","金额"]];
+  const rows=[[
+    "商品","原价","数量（正常/打包）","折扣","折后单价","原价总额","折后总额"
+  ]];
   const totals={};
+  let totalNormal=0,totalEarly=0,totalOriginal=0,totalAmount=0;
+
   for(const o of orders){
     for(const x of o.items||[]){
-      const k=x.name+"|"+x.unit;
-      if(!totals[k])totals[k]={name:x.name,unit:x.unit,normal:0,early:0,total:0,amount:0};
-      const t=totals[k],q=num(x.quantity);
-      t.total+=q;
-      t.amount+=num(x.amount,q*num(x.price)*num(x.discount,82)/100);
-      if(x.category==="提前装好")t.early+=q;
-      else t.normal+=q;
+      const name=String(x.name||"未命名商品").trim();
+      const unit=x.unit||"个";
+      const price=num(x.price,0);
+      const discount=num(x.discount,82);
+      const key=JSON.stringify([name,unit,price,discount]);
+
+      if(!totals[key]){
+        totals[key]={name,unit,price,discount,normal:0,early:0,originalAmount:0,amount:0};
+      }
+
+      const t=totals[key];
+      const q=num(x.quantity);
+      const amount=num(x.amount,q*price*discount/100);
+
+      if(x.category==="提前装好"){
+        t.early+=q;
+        totalEarly+=q;
+      }else{
+        t.normal+=q;
+        totalNormal+=q;
+      }
+
+      t.originalAmount+=q*price;
+      t.amount+=amount;
+      totalOriginal+=q*price;
+      totalAmount+=amount;
     }
   }
-  Object.values(totals).forEach(x=>rows.push([
-    x.name,x.unit,x.normal,x.early,x.total,money(x.amount)
-  ]));
-  downloadBlob("\uFEFF"+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n"),
-    "累计统计.csv","text/csv;charset=utf-8");
-}
 
+  Object.values(totals)
+    .sort((a,b)=>a.name.localeCompare(b.name,"zh-CN"))
+    .forEach(x=>{
+      rows.push([
+        x.name,
+        "¥"+money(x.price),
+        money(x.normal)+" / "+money(x.early)+" "+x.unit,
+        money(x.discount/10)+"折",
+        "¥"+money(x.price*x.discount/100),
+        "¥"+money(x.originalAmount),
+        "¥"+money(x.amount)
+      ]);
+    });
+
+  rows.push([]);
+  rows.push([
+    "合计",
+    "",
+    money(totalNormal)+" / "+money(totalEarly),
+    "",
+    "",
+    "¥"+money(totalOriginal),
+    "¥"+money(totalAmount)
+  ]);
+
+  downloadBlob(
+    "\uFEFF"+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n"),
+    "累计统计.csv",
+    "text/csv;charset=utf-8"
+  );
+}
 /* =========================
    六、历史订单
 ========================= */
