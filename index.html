@@ -209,7 +209,25 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 <section class="page" id="page-history">
   <div class="card">
     <h2>📚 历史订单</h2>
-    <div id="historyContent"></div>
+
+<div id="editOrderBox" style="display:none;margin-bottom:15px">
+  <h3>✏️ 编辑历史订单</h3>
+
+  <label>订单日期</label>
+  <input type="date" id="editOrderDate">
+
+  <div id="editOrderItems"></div>
+
+  <button class="btn primary full" onclick="saveEditedOrder()">
+    保存修改
+  </button>
+
+  <button class="btn full" style="margin-top:8px" onclick="cancelEditOrder()">
+    取消修改
+  </button>
+</div>
+
+<div id="historyContent"></div>
   </div>
 </section>
 
@@ -279,6 +297,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
 const DB_KEY = "hotel_order_manager_v1";
 let db = {products:[],orders:[]};
 let parsed = [];
+let editingOrderId = null;
 
 function uid(){
   return "id_" + Date.now().toString(36) + Math.random().toString(36).slice(2,8);
@@ -918,9 +937,57 @@ function renderHistory(){
           </div>
         `).join("")}
         <button class="btn danger small" style="margin-top:10px" onclick="deleteOrder('${o.id}')">删除整张订单</button>
+        <button class="btn primary small" style="margin-top:10px;margin-left:6px" onclick="editOrder('${o.id}')">编辑订单</button>
       </div>
     `;
   }).join("");
+}
+
+function editOrder(id){
+  const order=db.orders.find(o=>String(o.id)===String(id));
+
+  if(!order){
+    alert("没有找到这张订单。");
+    return;
+  }
+
+  editingOrderId=order.id;
+
+  document.getElementById("editOrderDate").value=order.date||"";
+
+  const box=document.getElementById("editOrderItems");
+
+  box.innerHTML=(order.items||[]).map((x,i)=>`
+    <div class="item" style="margin-top:10px">
+      <label>商品名称</label>
+      <input class="edit-item-name" value="${esc(x.name)}">
+
+      <label>数量</label>
+      <input class="edit-item-quantity" type="number" min="0" step="0.01" value="${num(x.quantity)}">
+
+      <label>单位</label>
+      <input class="edit-item-unit" value="${esc(x.unit)}">
+
+      <label>订货类别</label>
+      <select class="edit-item-category">
+        <option value="正常订货" ${x.category==="正常订货"?"selected":""}>正常订货</option>
+        <option value="提前装好" ${x.category==="提前装好"?"selected":""}>提前装好</option>
+      </select>
+
+      <label>单价（元）</label>
+      <input class="edit-item-price" type="number" min="0" step="0.01" value="${num(x.price)}">
+
+      <label>折扣（82代表82折）</label>
+      <input class="edit-item-discount" type="number" min="0" max="100" step="0.1" value="${num(x.discount,82)}">
+    </div>
+  `).join("");
+
+  document.getElementById("editOrderBox").style.display="block";
+
+  document.getElementById("editOrderBox").scrollIntoView({
+    behavior:"smooth",
+    block:"start"
+  });
 }
 
 function deleteOrder(id){
