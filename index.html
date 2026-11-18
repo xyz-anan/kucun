@@ -944,52 +944,80 @@ function renderHistory(){
 }
 
 function editOrder(id){
-  const order=db.orders.find(o=>String(o.id)===String(id));
-
-  if(!order){
-    alert("没有找到这张订单。");
+  function saveEditedOrder(){
+  if(!editingOrderId){
+    alert("没有正在编辑的订单。");
     return;
   }
 
-  editingOrderId=order.id;
+  const order=db.orders.find(o=>
+    String(o.id)===String(editingOrderId)
+  );
 
-  document.getElementById("editOrderDate").value=order.date||"";
+  if(!order){
+    alert("没有找到原订单。");
+    return;
+  }
 
-  const box=document.getElementById("editOrderItems");
+  const date=document.getElementById("editOrderDate").value;
+  if(!date){
+    alert("请填写订单日期。");
+    return;
+  }
 
-  box.innerHTML=(order.items||[]).map((x,i)=>`
-    <div class="item" style="margin-top:10px">
-      <label>商品名称</label>
-      <input class="edit-item-name" value="${esc(x.name)}">
+  const names=document.querySelectorAll(".edit-item-name");
+  const quantities=document.querySelectorAll(".edit-item-quantity");
+  const units=document.querySelectorAll(".edit-item-unit");
+  const categories=document.querySelectorAll(".edit-item-category");
+  const prices=document.querySelectorAll(".edit-item-price");
+  const discounts=document.querySelectorAll(".edit-item-discount");
 
-      <label>数量</label>
-      <input class="edit-item-quantity" type="number" min="0" step="0.01" value="${num(x.quantity)}">
+  const items=[];
 
-      <label>单位</label>
-      <input class="edit-item-unit" value="${esc(x.unit)}">
+  for(let i=0;i<names.length;i++){
+    const name=names[i].value.trim();
+    const quantity=num(quantities[i].value);
+    const unit=units[i].value.trim();
+    const price=num(prices[i].value);
+    const discount=num(discounts[i].value,82);
 
-      <label>订货类别</label>
-      <select class="edit-item-category">
-        <option value="正常订货" ${x.category==="正常订货"?"selected":""}>正常订货</option>
-        <option value="提前装好" ${x.category==="提前装好"?"selected":""}>提前装好</option>
-      </select>
+    if(!name||quantity<=0||!unit||price<0||discount<0||discount>100){
+      alert("第"+(i+1)+"件商品填写不正确，请检查。");
+      return;
+    }
 
-      <label>单价（元）</label>
-      <input class="edit-item-price" type="number" min="0" step="0.01" value="${num(x.price)}">
+    const oldItem=order.items[i]||{};
 
-      <label>折扣（82代表82折）</label>
-      <input class="edit-item-discount" type="number" min="0" max="100" step="0.1" value="${num(x.discount,82)}">
-    </div>
-  `).join("");
+    items.push({
+      ...oldItem,
+      name,
+      quantity,
+      unit,
+      category:categories[i].value,
+      price,
+      discount,
+      amount:Math.round(quantity*price*discount)/100
+    });
+  }
 
-  document.getElementById("editOrderBox").style.display="block";
+  if(!items.length){
+    alert("订单至少需要保留一件商品。");
+    return;
+  }
 
-  document.getElementById("editOrderBox").scrollIntoView({
-    behavior:"smooth",
-    block:"start"
-  });
+  order.date=date;
+  order.items=items;
+
+  persist();
+
+  editingOrderId=null;
+  document.getElementById("editOrderBox").style.display="none";
+
+  renderHistory();
+  renderSummary();
+
+  alert("原订单已修改成功！");
 }
-
 function deleteOrder(id){
   if(!confirm("确定删除这张历史订单吗？删除后不能自动恢复。"))return;
 
