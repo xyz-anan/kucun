@@ -136,6 +136,19 @@ button{cursor:pointer;font-family:inherit}
 .stat small{color:var(--muted)}
 .summary-number{font-size:23px;font-weight:bold;color:var(--navy);margin-top:5px}
 .table-wrap{overflow-x:auto}
+.summary-table-scroll{
+  max-height:360px;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:9px;
+  -webkit-overflow-scrolling:touch;
+}
+.summary-table-scroll table{min-width:620px}
+.summary-table-scroll thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+}
 table{width:100%;border-collapse:collapse;font-size:12px;min-width:440px}
 th,td{border-bottom:1px solid var(--line);padding:10px 7px;text-align:left}
 th{color:#657887;background:#f6f8fa}
@@ -201,7 +214,16 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
       </div>
     </div>
     <button class="btn primary full" onclick="renderSummary()">查询统计</button>
-    <div id="summaryContent"></div>
+    <div id="summaryStats"></div>
+  </div>
+
+  <div class="card">
+    <div id="summaryTableContent">
+      <div class="empty">选择日期范围并查询后，这里会显示商品累计明细</div>
+    </div>
+  </div>
+
+  <div class="card">
     <button class="btn full" onclick="exportSummaryCSV()">导出统计 CSV</button>
   </div>
 </section>
@@ -233,23 +255,6 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}
   <div class="hint" id="historyFilterStatus"></div>
 </div>
     <h2>📚 历史订单</h2>
-
-<div id="editOrderBox" style="display:none;margin-bottom:15px">
-  <h3>✏️ 编辑历史订单</h3>
-
-  <label>订单日期</label>
-  <input type="date" id="editOrderDate">
-
-  <div id="editOrderItems"></div>
-
-  <button class="btn primary full" onclick="saveEditedOrder()">
-    保存修改
-  </button>
-
-  <button class="btn full" style="margin-top:8px" onclick="cancelEditOrder()">
-    取消修改
-  </button>
-</div>
 
 <div id="historyContent"></div>
   </div>
@@ -338,6 +343,37 @@ function num(v,def=0){
 function money(v){
   return (Math.round(num(v)*100)/100).toFixed(2);
 }
+
+// 金额截断到小数点后一位，不进行四舍五入
+function truncateMoney1(value){
+  const n=num(value,0);
+  const adjusted=n+Math.sign(n)*1e-9;
+  return Math.trunc(adjusted*10)/10;
+}
+
+// 统一计算单件商品的折后金额
+function calculateItemAmount(item){
+  const quantity=num(item.quantity,0);
+  const price=num(item.price,0);
+  const discount=num(item.discount,82);
+
+  // 先把折后单价截断到1位小数，再乘商品数量
+  const discountedUnitPrice=truncateMoney1(price*discount/100);
+  // 消除浮点数尾差，不改变小数数量的实际金额
+  return Number((quantity*discountedUnitPrice).toFixed(10));
+}
+
+// 重新计算一张订单内的所有商品金额
+function money1(value){
+  return truncateMoney1(value).toFixed(1);
+}
+function recalculateOrder(order){
+  if(!order||!Array.isArray(order.items))return;
+
+  order.items.forEach(item=>{
+    item.amount=calculateItemAmount(item);
+  });
+}
 function cleanName(v){
   return String(v||"").trim().replace(/\s+/g,"");
 }
@@ -359,24 +395,26 @@ function migrateDB(old){
   result.products=oldProducts.map(normalizeProduct);
 
   const oldOrders=Array.isArray(old.orders)?old.orders:[];
-  result.orders=oldOrders.map(o=>({
-    id:o.id||uid(),
-    date:o.date||"",
-    raw:o.raw||"",
-    items:(Array.isArray(o.items)?o.items:[]).map(x=>({
-      ...x,
-      id:x.id||uid(),
-      name:String(x.name||"未命名商品"),
-      quantity:num(x.quantity,0),
-      unit:x.unit||"个",
-      category:x.category||"正常订货",
-      price:num(x.price,0),
-      discount:num(x.discount,82),
-      amount:Number.isFinite(Number(x.amount))
-        ?num(x.amount)
-        :num(x.quantity)*num(x.price)*num(x.discount,82)/100
-    }))
-  }));
+  result.orders=oldOrders.map(o=>{
+    const order={
+      id:o.id||uid(),
+      date:o.date||"",
+      raw:o.raw||"",
+      items:(Array.isArray(o.items)?o.items:[]).map(x=>({
+        ...x,
+        id:x.id||uid(),
+        name:String(x.name||"未命名商品"),
+        quantity:num(x.quantity,0),
+        unit:x.unit||"个",
+        category:x.category||"正常订货",
+        price:num(x.price,0),
+        discount:num(x.discount,82),
+        amount:0
+      }))
+    };
+    recalculateOrder(order);
+    return order;
+  });
   return result;
 }
 function loadDB(){
@@ -592,7 +630,7 @@ function renderPreview(){
   }
 
   box.innerHTML=parsed.map((x,i)=>{
-    const amount=num(x.quantity)*num(x.price)*num(x.discount,82)/100;
+    const amount=calculateItemAmount(x);
     const options=db.products.map(p=>
       `<option value="${esc(p.id)}" ${p.id===x.productId?"selected":""}>${esc(p.name)}</option>`
     ).join("");
@@ -642,8 +680,15 @@ function saveOrder(){
 
   const items=[];
   for(const x of parsed){
-    if(!String(x.name||"").trim()||num(x.quantity)<=0){
+    const quantity=num(x.quantity);
+    const price=num(x.price,0);
+    const discount=num(x.discount,82);
+    if(!String(x.name||"").trim()||quantity<=0){
       alert("商品名称或数量不正确，请检查后再入账。");
+      return;
+    }
+    if(price<0||discount<0||discount>100){
+      alert("商品单价不能小于0，折扣必须在0到100之间，请检查后再入账。");
       return;
     }
     let p=x.productId?findProductById(x.productId):null;
@@ -665,9 +710,6 @@ function saveOrder(){
       p.discount=num(x.discount,82);
     }
 
-    const quantity=num(x.quantity);
-    const price=num(x.price);
-    const discount=num(x.discount,82);
     items.push({
       id:uid(),
       productId:p.id,
@@ -677,7 +719,7 @@ function saveOrder(){
       category:x.category||"正常订货",
       price,
       discount,
-      amount:Math.round(quantity*price*discount)/100
+      amount:calculateItemAmount({quantity,price,discount})
     });
   }
 
@@ -711,6 +753,10 @@ function addProduct(){
 
   if(!name){
     alert("请填写商品名称。");
+    return;
+  }
+  if(price<0){
+    alert("商品单价不能小于0。");
     return;
   }
   if(discount<0||discount>100){
@@ -762,6 +808,12 @@ function saveProduct(id,button){
 
   if(!Number.isFinite(discount)||discount<0||discount>100){
     alert("折扣必须在0到100之间。");
+    return;
+  }
+
+  const nameOwner=findProductByName(name);
+  if(nameOwner&&nameOwner.id!==id){
+    alert("商品名称「"+name+"」已经属于商品「"+nameOwner.name+"」，请修改后再保存。");
     return;
   }
 
@@ -896,10 +948,7 @@ function renderSummary(){
 
       const t=totals[key];
       const q=num(x.quantity);
-      const amount=num(
-        x.amount,
-        q*price*discount/100
-      );
+      const amount=num(x.amount,calculateItemAmount(x));
 
       t.total+=q;
       t.originalAmount+=q*price;
@@ -921,7 +970,7 @@ function renderSummary(){
   const rows=Object.values(totals)
     .sort((a,b)=>a.name.localeCompare(b.name,"zh-CN"));
 
-  document.getElementById("summaryContent").innerHTML=`
+  document.getElementById("summaryStats").innerHTML=`
     <div class="stat-grid" style="margin-top:14px">
       <div class="stat">
         <small>订单数量</small>
@@ -929,7 +978,7 @@ function renderSummary(){
       </div>
       <div class="stat">
         <small>订货总金额</small>
-        <div class="summary-number">¥${money(totalAmount)}</div>
+        <div class="summary-number">¥${money1(totalAmount)}</div>
       </div>
       <div class="stat">
         <small>正常订货数量</small>
@@ -940,10 +989,12 @@ function renderSummary(){
         <div class="summary-number">${money(earlyCount)}</div>
       </div>
     </div>
+  `;
 
+  document.getElementById("summaryTableContent").innerHTML=`
     <h3>商品累计明细</h3>
 
-    <div class="table-wrap">
+    <div class="summary-table-scroll">
       <table>
         <thead>
           <tr>
@@ -964,9 +1015,9 @@ function renderSummary(){
               <td>¥${money(x.price)}</td>
               <td>${money(x.normal)} / ${money(x.early)} ${esc(x.unit)}</td>
               <td>${money(x.discount/10)}折</td>
-              <td>¥${money(x.price*x.discount/100)}</td>
+              <td>¥${money1(truncateMoney1(x.price*x.discount/100))}</td>
               <td>¥${money(x.originalAmount)}</td>
-              <td><strong>¥${money(x.amount)}</strong></td>
+              <td><strong>¥${money1(x.amount)}</strong></td>
             </tr>
           `).join("")||'<tr><td colspan="7" class="empty">当前日期范围没有订单</td></tr>'}
         </tbody>
@@ -979,7 +1030,7 @@ function renderSummary(){
             <th></th>
             <th></th>
             <th>¥${money(totalOriginal)}</th>
-            <th>¥${money(totalAmount)}</th>
+            <th>¥${money1(totalAmount)}</th>
           </tr>
         </tfoot>
       </table>
@@ -1009,7 +1060,7 @@ function exportSummaryCSV(){
 
       const t=totals[key];
       const q=num(x.quantity);
-      const amount=num(x.amount,q*price*discount/100);
+      const amount=num(x.amount,calculateItemAmount(x));
 
       if(x.category==="提前装好"){
         t.early+=q;
@@ -1034,9 +1085,9 @@ function exportSummaryCSV(){
         "¥"+money(x.price),
         money(x.normal)+" / "+money(x.early)+" "+x.unit,
         money(x.discount/10)+"折",
-        "¥"+money(x.price*x.discount/100),
+        "¥"+money1(truncateMoney1(x.price*x.discount/100)),
         "¥"+money(x.originalAmount),
-        "¥"+money(x.amount)
+        "¥"+money1(x.amount)
       ]);
     });
 
@@ -1048,7 +1099,7 @@ function exportSummaryCSV(){
     "",
     "",
     "¥"+money(totalOriginal),
-    "¥"+money(totalAmount)
+    "¥"+money1(totalAmount)
   ]);
 
   downloadBlob(
@@ -1084,10 +1135,8 @@ const orders=[...db.orders]
   }
 
   box.innerHTML=orders.map(o=>{
-  console.log("历史订单数据：",o);
-console.log("订单商品明细：",o.items);
-    const amount=(o.items||[]).reduce((s,x)=>
-      s+num(x.amount,num(x.quantity)*num(x.price)*num(x.discount,82)/100),0);
+    const amount=truncateMoney1((o.items||[]).reduce((s,x)=>
+      s+num(x.amount,calculateItemAmount(x)),0));
 
     const isEditing=String(editingOrderId)===String(o.id);
 
@@ -1097,10 +1146,12 @@ console.log("订单商品明细：",o.items);
           <label>订单日期</label>
           <input type="date" class="edit-order-date" value="${esc(o.date)}">
 
+          <div class="edit-items-list">
           ${(o.items||[]).map(x=>`
-            <div class="item" style="margin-top:10px">
-              <label>商品名称</label>
-              <input class="edit-item-name" value="${esc(x.name)}">
+            <div class="item edit-item-row" data-item-id="${esc(x.id||uid())}" data-product-id="${esc(x.productId||"")}" style="margin-top:10px">
+              <label>商品名称（可搜索商品目录，也可手动填写临时商品）</label>
+              <input class="edit-item-name" value="${esc(x.name)}" oninput="handleEditedProductInput(this)" autocomplete="off">
+              <div class="edit-product-suggestions"></div>
 
               <label>数量</label>
               <input class="edit-item-quantity" type="number" min="0" step="0.01" value="${num(x.quantity)}">
@@ -1119,15 +1170,18 @@ console.log("订单商品明细：",o.items);
 
               <label>折扣（82代表82折）</label>
               <input class="edit-item-discount" type="number" min="0" max="100" step="0.1" value="${num(x.discount,82)}">
+              <button type="button" class="btn danger small" style="width:100%;margin-top:8px" onclick="removeEditedItem(this)">删除这一件商品</button>
             </div>
           `).join("")}
+          </div>
+          <button type="button" class="btn secondary" style="width:100%;margin-top:10px" onclick="addEditedItem(this)">＋ 新增商品</button>
         </div>
       `
       : (o.items||[]).map(x=>`
           <div style="padding:5px 0;border-bottom:1px solid #f0f2f4">
             ${esc(x.name)}　${esc(x.quantity)} ${esc(x.unit)}
             <span class="tag">${esc(x.category)}</span>
-            <div class="hint">单价 ¥${money(x.price)} × ${money(x.discount)}折 = ¥${money(x.amount)}</div>
+            <div class="hint">单价 ¥${money(x.price)} × ${money(x.discount/10)}折 = ¥${money(x.amount)}</div>
           </div>
         `).join("");
 
@@ -1148,7 +1202,7 @@ console.log("订单商品明细：",o.items);
     return `
       <div class="item" id="history-order-${esc(o.id)}">
         <div class="item-title">
-          ${esc(o.date)}　订单金额：¥${money(amount)}
+          ${esc(o.date)}　订单金额：¥${money1(amount)}
           ${isEditing?'<span class="tag">正在编辑</span>':''}
         </div>
       <div style="max-height:260px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-right:4px">
@@ -1200,6 +1254,84 @@ function editOrder(id){
   }
 }
 
+function addEditedItem(button){
+  const card=button.closest(".item");
+  const list=card?.querySelector(".edit-items-list");
+  if(!list)return;
+  const id=uid();
+  const row=document.createElement("div");
+  row.className="item edit-item-row";
+  row.dataset.itemId=id;
+  row.style.marginTop="10px";
+  row.innerHTML=`
+    <label>商品名称（可搜索商品目录，也可手动填写临时商品）</label>
+    <input class="edit-item-name" placeholder="输入商品名称搜索" oninput="handleEditedProductInput(this)" autocomplete="off">
+    <div class="edit-product-suggestions"></div>
+    <label>数量</label>
+    <input class="edit-item-quantity" type="number" min="0" step="0.01" value="1">
+    <label>单位</label>
+    <input class="edit-item-unit" value="个">
+    <label>订货类别</label>
+    <select class="edit-item-category">
+      <option value="正常订货" selected>正常订货</option>
+      <option value="提前装好">提前装好</option>
+    </select>
+    <label>单价（元）</label>
+    <input class="edit-item-price" type="number" min="0" step="0.01" value="0">
+    <label>折扣（82代表82折）</label>
+    <input class="edit-item-discount" type="number" min="0" max="100" step="0.1" value="82">
+    <button type="button" class="btn danger small" style="width:100%;margin-top:8px" onclick="removeEditedItem(this)">删除这一件商品</button>
+  `;
+  list.appendChild(row);
+  row.querySelector(".edit-item-name").focus();
+}
+
+function handleEditedProductInput(input){
+  const row=input.closest(".edit-item-row");
+  if(!row)return;
+  // 手动改名后解除原商品关联，避免错误继承目录信息
+  row.dataset.productId="";
+  const box=row.querySelector(".edit-product-suggestions");
+  const keyword=cleanName(input.value).toLowerCase();
+  if(!box)return;
+  if(!keyword){box.innerHTML="";return;}
+
+  const matches=db.products.filter(p=>{
+    const names=[p.name,...(p.aliases||[])];
+    return names.some(name=>cleanName(name).toLowerCase().includes(keyword));
+  }).slice(0,8);
+
+  if(!matches.length){
+    box.innerHTML='<div class="hint" style="padding:8px 2px">没有找到匹配商品，可以继续手动填写，保存为临时商品（不会加入商品目录）。</div>';
+    return;
+  }
+
+  box.innerHTML=matches.map(p=>`
+    <button type="button" class="btn" data-product-id="${esc(p.id)}" style="display:block;width:100%;text-align:left;margin-top:5px;white-space:normal" onclick="chooseEditedProduct(this)">
+      <strong>${esc(p.name)}</strong><span class="hint" style="display:inline;margin-left:8px">单位：${esc(p.unit)}　单价：¥${money(p.price)}　${money(p.discount)}折</span>
+    </button>
+  `).join("");
+}
+
+function chooseEditedProduct(button){
+  const row=button.closest(".edit-item-row");
+  const product=findProductById(button.dataset.productId);
+  if(!row||!product)return;
+  row.dataset.productId=product.id;
+  row.querySelector(".edit-item-name").value=product.name;
+  row.querySelector(".edit-item-unit").value=product.unit;
+  row.querySelector(".edit-item-price").value=product.price;
+  row.querySelector(".edit-item-discount").value=product.discount;
+  const box=row.querySelector(".edit-product-suggestions");
+  if(box)box.innerHTML="";
+}
+
+function removeEditedItem(button){
+  const row=button.closest(".edit-item-row");
+  if(!row)return;
+  row.remove();
+}
+
 function saveEditedOrder(){
   if(!editingOrderId){
     alert("没有正在编辑的订单。");
@@ -1228,38 +1360,37 @@ function saveEditedOrder(){
     return;
   }
 
-  const names=card.querySelectorAll(".edit-item-name");
-  const quantities=card.querySelectorAll(".edit-item-quantity");
-  const units=card.querySelectorAll(".edit-item-unit");
-  const categories=card.querySelectorAll(".edit-item-category");
-  const prices=card.querySelectorAll(".edit-item-price");
-  const discounts=card.querySelectorAll(".edit-item-discount");
-
+  const rows=card.querySelectorAll(".edit-item-row");
   const items=[];
 
-  for(let i=0;i<names.length;i++){
-    const name=names[i].value.trim();
-    const quantity=num(quantities[i].value);
-    const unit=units[i].value.trim();
-    const price=num(prices[i].value);
-    const discount=num(discounts[i].value,82);
+  for(let i=0;i<rows.length;i++){
+    const row=rows[i];
+    const name=row.querySelector(".edit-item-name").value.trim();
+    const quantity=num(row.querySelector(".edit-item-quantity").value);
+    const unit=row.querySelector(".edit-item-unit").value.trim();
+    const category=row.querySelector(".edit-item-category").value;
+    const price=num(row.querySelector(".edit-item-price").value);
+    const discount=num(row.querySelector(".edit-item-discount").value,82);
 
     if(!name||quantity<=0||!unit||price<0||discount<0||discount>100){
       alert("第"+(i+1)+"件商品填写不正确，请检查。");
       return;
     }
 
-    const oldItem=order.items[i]||{};
+    const itemId=row.dataset.itemId;
+    const oldItem=order.items.find(x=>String(x.id)===String(itemId))||{};
 
     items.push({
       ...oldItem,
+      id:itemId||uid(),
+      ...(row.dataset.productId?{productId:row.dataset.productId}:{productId:null}),
       name,
       quantity,
       unit,
-      category:categories[i].value,
+      category,
       price,
       discount,
-      amount:Math.round(quantity*price*discount)/100
+      amount:calculateItemAmount({quantity,price,discount})
     });
   }
 
@@ -1481,7 +1612,7 @@ selectedOrders.forEach(o=>{
     summary[key].quantity+=num(x.quantity,0);
     summary[key].amount+=Number.isFinite(Number(x.amount))
       ?Number(x.amount)
-      :num(x.quantity,0)*price*discount/100;
+      :calculateItemAmount(x);
   });
 });
 
@@ -1505,14 +1636,14 @@ const summaryRows=[
     x.name,
     x.price,
     x.discount/10,
-    Number((x.price*x.discount/100).toFixed(3)),
+    truncateMoney1(x.price*x.discount/100),
     x.quantity+x.unit,
-    Number(x.amount.toFixed(2))
+    truncateMoney1(x.amount)
   ]),
   [],
   ["本期订货总量","","","",totalQuantity,""],
   ["本期订货总金额","","","","",
-    Number(totalAmount.toFixed(2))
+    truncateMoney1(totalAmount)
   ]
 ];
 
@@ -1593,7 +1724,7 @@ function importExcel(){
           const price=num(x["单价"]);
           const discount=num(x["折扣"],82);
           const amount=x["金额"]===""
-            ?quantity*price*discount/100
+            ?calculateItemAmount({quantity,price,discount})
             :num(x["金额"]);
 
           order.items.push({
